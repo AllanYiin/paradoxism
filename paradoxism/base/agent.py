@@ -1,15 +1,15 @@
-import os
-import openai
-from openai import OpenAI
-from functools import wraps
-from typing import Callable
+import hashlib
 import threading
 import time
 import uuid
-import hashlib
-import logging
-from paradoxism.utils.utils import *
+from functools import wraps
+from typing import Callable
+
+from openai import OpenAI
+
 from paradoxism.base.perfm import PerformanceCollector
+from paradoxism.utils.utils import *
+from paradoxism.utils.docstring_utils import *
 
 # 建立全域的 PerformanceCollector 實例，保證所有地方都能使用這個實例
 collector = PerformanceCollector()
@@ -71,9 +71,10 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, **kwargs):
     def decorator(func: Callable):
 
         func.llm_client = LLMClient(model, system_prompt, temperature, **kwargs)
-        func.static_instruction = func.__doc__ or ""
+
+        func.static_instruction =parse_docstring(func.__doc__)['static_instruction'] or ""
         _thread_local.llm_client =func.llm_client
-        _thread_local.static_instruction = func.__doc__ or ""
+        _thread_local.static_instruction = parse_docstring(func.__doc__)['static_instruction'] or ""
 
         @wraps(func)
         def wrapper(*args, **kwargs_inner):
