@@ -1,2 +1,2 @@
-`![alt text](images/PARADOXISM_LOGO.png, "logo")`
+<img src='images/PARADOXISM_LOGO.png'/>
 
