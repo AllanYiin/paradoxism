@@ -26,7 +26,7 @@ def query_yahoo_news(stock_id, stock_name)->dict:
 
 def collect_news():
     results={}
-    stocks={"2301.TW":"光寶科","2308.TW":"台達電"}
+    stocks={"2454.TW":"聯發科","2330.TW":"台積電"}
     for k,v in  stocks.items():
         print(f'{v}({k})')
         results[k]=query_yahoo_news({"stock_id":k,"stock_name":v})
