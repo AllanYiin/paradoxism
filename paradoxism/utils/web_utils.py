@@ -34,7 +34,7 @@ ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
 
 def prepare_chrome_options():
     chrome_options = Options()
-    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless=old')
     chrome_options.add_argument('blink-settings=imagesEnabled=false')
 
     chrome_options.add_argument(f"--window-size=1920,1440")
@@ -60,6 +60,7 @@ def prepare_chrome_options():
     chrome_options.add_argument('--allow-running-insecure-content')
 
     return chrome_options
+
 
 
 # import chromedriver_binary

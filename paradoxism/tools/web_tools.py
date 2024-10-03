@@ -164,6 +164,7 @@ def quick_search(ur, kw,dm=None,l=None,**kwargs):
         return_results.extend(results)
     return json.dumps(return_results, ensure_ascii=False)
 
+
 def open_url(url,**kwargs):
     print(yellow_color(f"open_url url:{url}"), flush=True)
     response = requests.head(url)
