@@ -3,7 +3,6 @@ import copy
 import json
 import re
 from paradoxism import context
-from paradoxism.common import *
 from paradoxism.context import *
 
 cxt = context._context()
@@ -11,20 +10,23 @@ __all__ = ["LLMClient","LLMClientManager"]
 
 
 class LLMClient:
-    def __init__(self, api_key, model=None):
-        self.api_key = api_key
+    def __init__(self, model, system_prompt, temperature=0.2, **kwargs):
+
         self.model = model
         self.tools = []
         self.client = None
-        self.parent = None
+        self.system_prompt = system_prompt
+        self.temperature=temperature
         self.aclient = None
-        self.params = None
+        self.params =None
 
     def chat_completion_request(self, message_with_context, parameters=None, stream=False, use_tool=True):
         raise NotImplementedError("Subclasses should implement this method")
 
     async def async_chat_completion_request(self, message_with_context, parameters=None, stream=False, use_tool=True):
         raise NotImplementedError("Subclasses should implement this method")
+
+
 
 class LLMClientManager:
     def __init__(self, config_file='config.json', default_model='gpt-4o', tools=None):
@@ -37,11 +39,11 @@ class LLMClientManager:
     def load_config(self, config_file):
         with open(config_file, 'r') as f:
             self.config = json.load(f)
+            self.switch_model()
 
     def switch_model(self, provider, model=None, instance=None):
         if provider == 'openai':
-            self.current_client = OpenAIClient(api_key=self.config['openai']['api_key'],
-                                               model=model or self.default_model, tools=self.tools)
+            self.current_client = OpenAIClient(api_key=model or self.default_model, tools=self.tools)
         elif provider == 'azure' and instance:
             instance_config = self.config['azure'].get(instance)
             if instance_config:
