@@ -1,0 +1,60 @@
+{
+  "azure": [
+    {
+      "azure_endpoint": "https://ltc-to-openai3.openai.azure.com/",
+      "api_key": "acf9f3b8a6c346f1bf81df4b32e9d818",
+      "azure_deployment": "gpt-35-turbo",
+      "api_version": "2023-12-01-preview",
+      "max_token": 16385
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai3.openai.azure.com/",
+      "api_key": "acf9f3b8a6c346f1bf81df4b32e9d818",
+      "azure_deployment": "text-embedding-ada-002",
+      "api_version": "2023-12-01-preview",
+      "max_token": 8192
+    },
+        {
+      "azure_endpoint": "https://ltc-to-openai3.openai.azure.com/",
+      "api_key": "acf9f3b8a6c346f1bf81df4b32e9d818",
+      "azure_deployment": "gpt-4o-auto",
+      "api_version": "2024-02-01",
+      "max_tokens": 128000
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai3.openai.azure.com/",
+      "api_key": "acf9f3b8a6c346f1bf81df4b32e9d818",
+      "azure_deployment": "gpt-4-1106-preview",
+      "api_version": "2023-12-01-preview",
+      "max_tokens": 128000
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai2.openai.azure.com/",
+      "api_key": "b3594670c8d141c997fb90675257f74a",
+      "azure_deployment": "gpt-4",
+      "api_version": "2023-12-01-preview",
+      "max_tokens": 8192
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai2.openai.azure.com/",
+      "api_key": "b3594670c8d141c997fb90675257f74a",
+      "azure_deployment": "gpt-4-32k",
+      "api_version": "2023-12-01-preview",
+      "max_tokens": 32768
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai2.openai.azure.com/",
+      "api_key": "b3594670c8d141c997fb90675257f74a",
+      "azure_deployment": "gpt-4n",
+      "api_version": "2023-12-01-preview",
+      "max_tokens": 8192
+    },
+    {
+      "azure_endpoint": "https://ltc-to-openai2.openai.azure.com/",
+      "api_key": "b3594670c8d141c997fb90675257f74a",
+      "azure_deployment": "text-embedding-ada-002",
+      "api_version": "2023-12-01-preview",
+      "max_tokens": 8192
+    }
+  ]
+}
