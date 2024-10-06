@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 __all__ = ["parse_docstring"]
 
 def detect_style(docstring: str) -> str:
@@ -39,7 +40,7 @@ def parse_docstring(docstring: str, style=None) -> dict:
         'input_args': [],
         'return': []
     }
-    if docstring is None:
+    if docstring is None or docstring=='':
         return result
     style = detect_style(docstring)
 
@@ -85,10 +86,22 @@ def parse_plain_style(docstring: str) -> dict:
     returns_match = returns_pattern.search(docstring)
 
     static_parts = []
+    upper_end=None
+    lower_start = None
     if params_match:
-        static_parts.append(docstring[:params_match.start()].strip())
+        upper_end = params_match.start()
+        lower_start= params_match.end()
+
     if returns_match:
-        static_parts.append(docstring[returns_match.end():].strip())
+        upper_end = returns_match.start() if upper_end is None else upper_end
+        lower_start= returns_match.end()
+
+    if not params_match and not returns_match:
+        static_parts.append(docstring.strip())
+    else:
+        static_parts.append(docstring[:upper_end].strip())
+        static_parts.append(docstring[lower_start+1:].strip())
+
 
     result['static_instruction'] = '\n\n'.join(static_parts)
 
