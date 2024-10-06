@@ -1,22 +1,29 @@
-import re
+import html
 import json
+import logging
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from typing import Any, Iterable
+
 import markdown
-import html
-from typing import Any, Dict, List
 from jsonschema import validate, ValidationError
 
-__all__ = ["force_cast","target_types"]
+__all__ = ["force_cast","target_types","to_json","is_json_serializable"]
 
 target_types=["str", "int", "float", "date", "dict", "list", "json", "xml", "markdown", "html", "code"]
 
 def force_cast(response: str, target_type: str,schema=None) -> Any:
     """
-    根據指定型別強制轉型 LLM 回應
-    :param response: LLM 回應字串
-    :param target_type: 目標型別 ("str", "int", "float", "date", "dict", "list", "json", "xml", "markdown", "html", "code")
-    :return: 轉型後的結果
+    Force cast the LLM response to the specified type.
+
+    Args:
+        response (str): The LLM response string.
+        target_type (str): The target type ("str", "int", "float", "date", "dict", "list", "json", "xml", "markdown", "html", "code").
+        schema (dict, optional): The JSON schema for validation.
+
+    Returns:
+        Any: The result after type casting.
     """
 
     # 直接根據不同的目標類型來進行處理
@@ -107,3 +114,50 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
 
     except Exception as e:
         return f"Error during conversion: {str(e)}"
+
+
+def json_serialize(data):
+    return json.dumps(data, ensure_ascii=False, indent=4)
+
+def is_json_serializable(value):
+    if isinstance(value, (dict, list, tuple, str, int, float, bool, type(None))):
+        return True
+    elif hasattr(value, "__dict__"):
+        # 檢查 __dict__ 的內容是否都可序列化
+        return all(is_json_serializable(v) for v in value.__dict__.values())
+    else:
+        return False
+
+def to_json(data):
+    """
+    Convert the given data to a JSON string.
+
+    Args:
+        data: The data to be converted to JSON. It can be of any type.
+
+    Returns:
+        str: The JSON string representation of the input data.
+    """
+    try:
+        # 如果是字典，先確認所有值是否可序列化
+        if isinstance(data, dict):
+            serializable_dict = {k: (to_json(v) if hasattr(v, "__dict__") else v if is_json_serializable(v) else str(v)) for k, v in data.items()}
+            return json_serialize(serializable_dict)
+        # 如果是自訂類別的物件，將其屬性轉換為字典後再進行轉換
+        elif hasattr(data, "__dict__"):
+            # 先檢查屬性是否可序列化
+            if is_json_serializable(data):
+                return json_serialize(data.__dict__)
+            else:
+                serializable_dict = {k: (to_json(v) if hasattr(v, "__dict__") else v if is_json_serializable(v) else str(v)) for k, v in data.__dict__.items()}
+                return json_serialize(serializable_dict)
+        # 如果是可迭代的其他資料類型 (排除字串)
+        elif isinstance(data, Iterable) and not isinstance(data, (str, bytes)):
+            return json_serialize([to_json(item) if hasattr(item, "__dict__") else item for item in data])
+        # 其他可被 JSON 序列化的資料類型
+        else:
+            return json_serialize(data)
+    except (TypeError, ValueError) as e:
+        # 捕捉不能被序列化的例外，記錄錯誤並返回錯誤訊息
+        logging.error(f"Unable to serialize object: {str(e)}", exc_info=True, stack_info=True)
+        return json_serialize({"error": f"Unable to serialize object: {str(e)}"})
