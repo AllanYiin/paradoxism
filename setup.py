@@ -70,10 +70,10 @@ setup(name=NAME,
       python_requires='>=3.7',
       keywords=['chatgpt', 'gpt4','llm','prompt'],
       packages= find_packages(exclude= [".idea"]),
-      # package_data={
-      #     'paradoxism': ['oai.json','model_infos.json','prompts/*.md', 'images/*.*g', 'examples/*.*', 'tools/*.json','tools/tool_icons/*.png','examples/*/*.md','examples/*/*.sql'],
-      # },
-      include_package_data=False,
+      package_data={
+          'paradoxism': ['oai.json','model_infos.json''examples/*.md'],
+      },
+      include_package_data=True,
       scripts=[],
 
       )
