@@ -8,7 +8,7 @@ from typing import Dict, Any
 from paradoxism.utils.utils import *
 from paradoxism.base.agent import _thread_local,LLMClient
 
-def prompt(prompt_text: str):
+def prompt(prompt_text: str,**kwargs):
     """
     執行給定的 prompt 並返回解析後的 LLM 回應。
     支持多種格式：json, python, xml, html, markdown, yaml。
@@ -20,19 +20,25 @@ def prompt(prompt_text: str):
     llm_client = getattr(_thread_local, 'llm_client', None)
     if not llm_client:
         raise RuntimeError("prompt 函數必須在 @agent 裝飾的函數內部調用。")
+    #static_instruction = getattr(_thread_local, 'static_instruction', '')
+    input_args = getattr(_thread_local, 'input_args', '')
+    returns = getattr(_thread_local, 'returns', '')
+    variables_need_to_replace = re.findall(r'{(.*?)}', prompt_text)
+
 
     start_time = time.time()  # 記錄開始時間
     # 生成完整的提示
-    instruction = getattr(_thread_local, 'static_instruction', '')
-    full_prompt = f"{instruction}\n{prompt_text}"
+    static_instruction = getattr(_thread_local, 'static_instruction', '')
+    full_prompt = f"{static_instruction}\n{prompt_text}"
     response = llm_client.generate(full_prompt)
+
 
     # 處理代碼塊標記並解析
     parsed_response = parse_llm_response(response)
 
     end_time = time.time()  # 記錄結束時間
     execution_time = end_time - start_time  # 計算執行時間
-    print(green_color(f"prompt:"), yellow_color(f"executed in {execution_time:.4f} seconds"),full_prompt.strip(),flush=True)  # 輸出執行時間
+    print( yellow_color(f"executed in {execution_time:.4f} seconds"),gray_color('prompt:\n'+full_prompt.strip()),flush=True)  # 輸出執行時間
 
     return parsed_response
 
