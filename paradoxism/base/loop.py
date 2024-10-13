@@ -3,24 +3,34 @@ import time
 import os
 from itertools import accumulate, combinations
 from paradoxism.context import get_optimal_workers
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Callable, Any, List, Dict
 
-def PCombinations(enumerable, r, func, max_workers=None, retries=3):
+
+__all__ = ["PCombinations", "PForEach", "PRange", "PEnumerate", "PAccumulate", "PMap", "PFilter", "PChain"]
+
+
+def retry_with_fallback(func: Callable, value, max_retries=3, delay=0.5):
     """
-    平行地計算一個可迭代對象中所有長度為 r 的組合，並應用給定的函數到每個組合。
+    通用重試函數，處理異常或不符合預期的返回值。
+    """
+    for attempt in range(max_retries):
+        try:
+            result = func(value)
+            if result is not None:  # 確保返回值有效
+                return result
+            else:
+                print(f"重試 {attempt + 1}/{max_retries} 遇到異常: {e}")
+        except Exception as e:
+            print(f"重試 {attempt + 1}/{max_retries} 遇到異常: {e}")
+        time.sleep(delay)  # 延遲後重試
+    return None  # 重試失敗返回 None
 
-    :param enumerable: 可迭代的對象（如列表或集合）
-    :param r: 組合的長度
-    :param func: 需要對每個組合應用的函數，函數唯一參數是組合值
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-    :param retries: 當函數執行失敗時的最大重試次數
-    :return: 字典，其中包含每個組合及其對應的處理結果。
 
-    Example:
-        >>> def example_function(comb):
-        ...     return sum(comb)
-        >>> data = [1, 2, 3, 4]
-        >>> PCombinations(data, 2, example_function)
-        {(1, 2): 3, (1, 3): 4, (1, 4): 5, (2, 3): 5, (2, 4): 6, (3, 4): 7}
+
+def PCombinations(func, enumerable, r, max_workers=None, max_retries=3, delay=0.5):
+    """
+    平行計算所有長度為 r 的組合，並將指定函數應用於每個組合，結果順序與輸入順序一致。
     """
     if isinstance(enumerable, (type(x for x in []), type(iter([])))):
         enumerable = list(enumerable)
@@ -28,164 +38,45 @@ def PCombinations(enumerable, r, func, max_workers=None, retries=3):
     if max_workers is None:
         max_workers = get_optimal_workers()
 
-    results = {}
+    combinations_list = list(combinations(enumerable, r))  # 預先計算組合，保證順序
+    results = [None] * len(combinations_list)  # 初始化列表以保持順序
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {}
-        for combination in combinations(enumerable, r):
-            future = executor.submit(func, combination)
-            futures[future] = combination
+        futures = {executor.submit(retry_with_fallback, func, combination, max_retries, delay): idx
+                   for idx, combination in enumerate(combinations_list)}
 
         for future in as_completed(futures):
-            combination = futures[future]
-            _process_combination_future(future, combination, results, executor, func, retries)
+            index = futures[future]
+            try:
+                results[index] = future.result()
+            except Exception as exc:
+                print(f'組合 {combinations_list[index]} 執行失敗: {exc}')
+                results[index] = None  # 記錄異常情況
 
     return results
 
-
-def _process_combination_future(future, combination, results, executor, func, retries):
-    """
-    處理單個已提交的 future，針對組合的情境。
-
-    :param future: 提交的 future
-    :param combination: 與該 future 關聯的組合值
-    :param results: 用於存儲結果的字典
-    :param executor: ThreadPoolExecutor 實例
-    :param func: 需要執行的函數
-    :param retries: 當函數執行失敗時的最大重試次數
-    """
-    retry_count = 0
-    while retry_count < retries:
-        try:
-            result = future.result()
-            results[combination] = result
-            break
-        except Exception as exc:
-            retry_count += 1
-            if retry_count >= retries:
-                print(f'組合 {combination} 執行時產生異常，已達到最大重試次數: {exc}')
-                results[combination] = None
-            else:
-                print(f'組合 {combination} 執行失敗，正在重試 ({retry_count}/{retries})...')
-                future = executor.submit(func, combination)
-
-
-def PForEach(enumerable, func, max_workers=None, retries=3):
-    """
-    平行執行對於每個枚舉值的函數操作。
-
-    :param enumerable: 可枚舉的列表或集合（不支持 generator 類型）
-    :param func: 需要執行的函數，函數唯一參數是枚舉值
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-    :param retries: 當函數執行失敗時的最大重試次數
-    :return: 字典，其中包含每個枚舉值及其對應的處理結果。適合執行有副作用的操作，例如寫入資料庫等。
-
-    Example:
-        >>> def example_function(item):
-        ...     return item * 2
-        >>> data = [1, 2, 3, 4, 5]
-        >>> PForEach(data, example_function)
-        {1: 2, 2: 4, 3: 6, 4: 8, 5: 10}
-    """
+def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5):
     if isinstance(enumerable, (type(x for x in []), type(iter([])))):
         enumerable = list(enumerable)
     if max_workers is None:
         max_workers = get_optimal_workers()
 
-    results = {}
+    results = [None] * len(enumerable)  # 使用列表來保證順序
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for value in enumerable:
-            future = executor.submit(func, value)
-            _process_future(future, value, results, executor, func, retries)
+        futures = {executor.submit(retry_with_fallback, func, value, max_retries, delay): idx
+                   for idx, value in enumerate(enumerable)}
+
+        for future in as_completed(futures):
+            index = futures[future]
+            try:
+                results[index] = future.result()
+            except Exception as exc:
+                results[index] = f"Error after retries: {exc}"
 
     return results
 
-
-def _process_future(future, value, results, executor, func, retries):
-    """
-    處理單個已提交的 future。
-
-    :param future: 提交的 future
-    :param value: 與該 future 關聯的值
-    :param results: 用於存儲結果的字典
-    :param executor: ThreadPoolExecutor 實例
-    :param func: 需要執行的函數
-    :param retries: 當函數執行失敗時的最大重試次數
-    """
-    retry_count = 0
-    while retry_count < retries:
-        try:
-            result = future.result()
-            results[value] = result
-            break
-        except Exception as exc:
-            retry_count += 1
-            if retry_count >= retries:
-                print(f'枚舉值 {value} 執行時產生異常，已達到最大重試次數: {exc}')
-                results[value] = None
-            else:
-                print(f'枚舉值 {value} 執行失敗，正在重試 ({retry_count}/{retries})...')
-                future = executor.submit(func, value)
-
-
-def PRange(start, end, func, enumerable=None, max_workers=None):
-    """
-    平行化處理一個範圍的數值，類似於 for i in range(start, end)。
-    如果提供了枚舉值列表，則根據索引取出對應位置作為輸入。
-
-    :param start: 起始值（包含）
-    :param end: 結束值（不包含）
-    :param func: 需要執行的函數，函數唯一參數是枚舉值
-    :param enumerable: 可選的枚舉值列表，用於根據索引進行處理
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-
-    Example:
-        >>> def example_function(item):
-        ...     return item * 2
-        >>> PRange(1, 5, example_function)
-        {1: 2, 2: 4, 3: 6, 4: 8}
-    """
-    if max_workers is None:
-        max_workers = get_optimal_workers()
-
-    if enumerable is not None:
-        if isinstance(enumerable, (type(x for x in []), type(iter([])))):
-            enumerable = list(enumerable)
-        values = [enumerable[i] for i in range(start, min(end, len(enumerable)))]
-    else:
-        values = range(start, end)
-    return PForEach(values, func, max_workers)
-
-
-def PEnumerate(enumerable, func, max_workers=None):
-    """
-    平行化處理一個枚舉值列表，根據索引取出對應位置作為輸入。
-
-    :param enumerable: 可枚舉的列表或集合
-    :param func: 需要執行的函數，函數的參數是 (索引, 值)
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-
-    Example:
-        >>> def example_enumerate_function(index, item):
-        ...     return f"索引 {index}: {item * 2}"
-        >>> data = [1, 2, 3]
-        >>> PEnumerate(data, example_enumerate_function)
-        {0: '索引 0: 2', 1: '索引 1: 4', 2: '索引 2: 6'}
-    """
-    if isinstance(enumerable, (type(x for x in []), type(iter([])))):
-        enumerable = list(enumerable)
-    if max_workers is None:
-        max_workers = get_optimal_workers()
-
-    results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for index, value in enumerate(enumerable):
-            future = executor.submit(func, index, value)
-            _process_future(future, index, results, executor, func, retries=3)
-
-    return results
-
-
-def PAccumulate(enumerable, func=lambda x, y: x + y, max_workers=None):
+def PAccumulate(func,enumerable, max_workers=None):
     """
     平行地累加每個枚舉值，類似於 itertools.accumulate。
 
@@ -221,72 +112,48 @@ def PAccumulate(enumerable, func=lambda x, y: x + y, max_workers=None):
     return results
 
 
-def PMap(enumerable, func, max_workers=None):
+def PMap(func: Callable, enumerable: Iterable, max_workers=None, max_retries=3, delay=0.5) -> Iterator:
     """
-    平行地對每個枚舉值應用函數並返回結果的列表。
-
+    平行地對每個枚舉值應用函數並返回惰性求值的迭代器。
+    :param func: 需要應用的函數
     :param enumerable: 可枚舉的列表或集合
-    :param func: 需要應用的函數，函數唯一參數是枚舉值
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-    :return: 包含每個函數應用結果的列表。適合需要對每個元素做處理並收集結果的情境，例如數據轉換。
-
-    Example:
-        >>> def example_function(item):
-        ...     return item * 2
-        >>> data = [1, 2, 3, 4]
-        >>> PMap(data, example_function)
-        [2, 4, 6, 8]
+    :param max_workers: 最大工作者數量，默認為 CPU 核心數量
+    :param max_retries: 每個元素的最大重試次數
+    :param delay: 每次重試間的延遲時間
+    :return: 包含每個元素結果的惰性迭代器
     """
+    if max_workers is None:
+        max_workers = get_optimal_workers()
+
+    # 使用 ThreadPoolExecutor.map 確保順序並發運行
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # 包裝帶重試的函數應用到每個元素
+        results = executor.map(lambda x: retry_with_fallback(func, x, max_retries, delay), enumerable)
+
+        # 返回迭代器以支援惰性求值
+        return results
+
+def PFilter(predicate, enumerable, max_workers=None, max_retries=3, delay=0.5):
     if isinstance(enumerable, (type(x for x in []), type(iter([])))):
         enumerable = list(enumerable)
     if max_workers is None:
         max_workers = get_optimal_workers()
 
     results = [None] * len(enumerable)
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(func, value): index for index, value in enumerate(enumerable)}
+        futures = {executor.submit(retry_with_fallback, predicate, value, max_retries, delay): idx
+                   for idx, value in enumerate(enumerable)}
+
         for future in as_completed(futures):
             index = futures[future]
             try:
-                results[index] = future.result()
-            except Exception as exc:
-                print(f'枚舉值 {enumerable[index]} 執行時產生異常: {exc}')
-    return results
-
-
-def PFilter(enumerable, predicate, max_workers=None):
-    """
-    平行地對每個枚舉值應用判斷函數，並返回符合條件的值。
-
-    :param enumerable: 可枚舉的列表或集合
-    :param predicate: 判斷函數，函數唯一參數是枚舉值，返回 True 或 False
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-    :return: 包含符合條件的值的列表
-
-    Example:
-        >>> def is_even(item):
-        ...     return item % 2 == 0
-        >>> data = [1, 2, 3, 4, 5]
-        >>> PFilter(data, is_even)
-        [2, 4]
-    """
-    if isinstance(enumerable, (type(x for x in []), type(iter([])))):
-        enumerable = list(enumerable)
-    if max_workers is None:
-        max_workers = get_optimal_workers()
-
-    results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(predicate, value): value for value in enumerable}
-        for future in as_completed(futures):
-            value = futures[future]
-            try:
                 if future.result():
-                    results.append(value)
+                    results[index] = enumerable[index]
             except Exception as exc:
-                print(f'枚舉值 {value} 執行判斷時產生異常: {exc}')
-    return results
+                print(f'枚舉值 {enumerable[index]} 執行判斷時產生最終異常: {exc}')
 
+    return [result for result in results if result is not None]
 
 def PChain(*iterables, max_workers=None):
     """
