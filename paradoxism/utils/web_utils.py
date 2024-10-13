@@ -11,7 +11,7 @@ import threading
 from collections import OrderedDict
 from urllib.parse import urlencode
 from itertools import chain
-import markdownify
+# import markdownify
 import numpy as np
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -74,18 +74,18 @@ https://beautiful-soup-4.readthedocs.io/en/latest/#contents-and-children
 """
 
 
-class CustomMarkdownConverter(markdownify.MarkdownConverter):
-    def convert_a(self, el, text, convert_as_inline):
-        classList = el.get("class")
-        if classList and "searched_found" in classList:
-            # custom transformation
-            # unwrap child nodes of <a class="searched_found">
-            text = ""
-            for child in el.children:
-                text += super().process_tag(child, convert_as_inline)
-            return text
-        # default transformation
-        return super().convert_a(el, text, convert_as_inline)
+# class CustomMarkdownConverter(markdownify.MarkdownConverter):
+#     def convert_a(self, el, text, convert_as_inline):
+#         classList = el.get("class")
+#         if classList and "searched_found" in classList:
+#             # custom transformation
+#             # unwrap child nodes of <a class="searched_found">
+#             text = ""
+#             for child in el.children:
+#                 text += super().process_tag(child, convert_as_inline)
+#             return text
+#         # default transformation
+#         return super().convert_a(el, text, convert_as_inline)
 
 
 # Create shorthand method for conversion

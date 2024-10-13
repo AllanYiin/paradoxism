@@ -152,6 +152,17 @@ def search_rag(ur, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_qu
         return json.dumps(return_results, ensure_ascii=False)
 
 def quick_search(ur, kw,dm=None,l=None,**kwargs):
+    """
+
+    Args:
+        ur: 使用者使用此工具的意圖
+        kw: 快速搜索的查詢關鍵字
+        dm: 指定搜索網域範圍
+        l: 語言 ISO 639-1編碼，例如台灣繁體中文為'zh-TW
+        **kwargs:
+    Returns:
+
+    """
     print(yellow_color(f"quick_search user request:{ur},  kw:{kw}, dm:{dm}"), flush=True)
     kw=kw.split('+')
     # 避免關鍵字被分拆 世界紀錄=>世界 紀錄
