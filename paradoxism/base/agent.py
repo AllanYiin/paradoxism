@@ -14,6 +14,7 @@ from paradoxism.utils.docstring_utils import *
 from paradoxism.ops.convert import *
 from paradoxism.llm import *
 
+from typing import get_type_hints
 # 建立全域的 PerformanceCollector 實例，保證所有地方都能使用這個實例
 collector = PerformanceCollector()
 
@@ -83,17 +84,56 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7,stream=False,
             else:
                 docstring = func.__doc__
             parsed_results =parse_docstring(docstring)
+            type_hints_results = get_type_hints(func)
+            inputs_dict_keys=list(inputs_dict.keys())
+            for idx  in range(len(parsed_results['input_args'])):
+                item=parsed_results['input_args'][idx]
+                if item['arg_name'] in inputs_dict_keys:
+                    ref=inputs_dict[ item['arg_name']]
+                    if ref['arg_type'] or len(ref['arg_type'])>0:
+                        parsed_results['input_args'][idx]['arg_type']=ref['arg_type']
+                    inputs_dict_keys.remove(item['arg_name'])
+                if not parsed_results['input_args'][idx]['arg_type'] or len(parsed_results['input_args'][idx]['arg_type'])==0:
+                    if item['arg_name'] in type_hints_results:
+                        parsed_results['input_args'][idx]['arg_type'] = type_hints_results[item['arg_name']].__name__
+            for k in inputs_dict_keys:
+                if k in type_hints_results:
+                    parsed_results['input_args'].append(type_hints_results[k])
+
+            signature = inspect.signature(func)
+            if 'return' in type_hints_results:
+                return_type=type_hints_results['return']
+                if not str(return_type).lower().startswith( 'tuple') and not str(return_type).lower().startswith( 'list'):
+                    return_dict={
+                        'return_name': 'return',
+                        'return_index': 0,
+                        'return_type': return_type,
+                        'return_desc': ''
+                    }
+                    if   len(parsed_results['return'])==1:
+                        parsed_results['return'][0].update(return_dict)
+                    else:
+                        parsed_results['return'].append(return_dict)
+                else:
+                    for i, item in enumerate(return_type.__args__):
+                        parsed_results['return'].append({
+                            'return_name': f'return{i}',
+                            'return_index': i,
+                            'return_type': item,
+                            'return_desc': ''
+                        })
+
+
 
             # 基於 system_prompt, static_instruction 和代碼邏輯生成唯一的 agent key
 
-            signature = inspect.signature(func)
-            return_annotation = get_type_hints(func).get('return')
+
             start_time = time.time()  # 記錄開始時間
             executor = get_current_executor()
             _thread_local.llm_client = func.llm_client
             _thread_local.static_instruction = parsed_results['static_instruction']
             _thread_local.returns =parsed_results[ 'return']
-
+            _thread_local.llm_client = func.llm_client
             func_code = func.__code__.co_code.decode('latin1')  # 使用函數的原始字節碼生成唯一 key
             agent_key = generate_agent_key(system_prompt, _thread_local.static_instruction, func_code)
 
@@ -107,10 +147,10 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7,stream=False,
                 # 正常執行
                 result= func(*args, **kwargs_inner)
 
-            if  return_annotation=='str' or (not isinstance(result, Iterable) and len( _thread_local.returns)==1 and return_annotation  in target_types):
-                result = force_cast(result, return_annotation)
-            elif not isinstance(result, Iterable) and len( _thread_local.returns)==1 and  _thread_local.returns['return_type'] in target_types:
-                result =force_cast(result,_thread_local.returns['return_type'])
+            if len(_thread_local.returns)==1:
+                result = force_cast(result, _thread_local.returns[0]['return_type'])
+            # elif not isinstance(result, Iterable) and len( _thread_local.returns)==1 and  _thread_local.returns['return_type'] in target_types:
+            #     result =force_cast(result,_thread_local.returns['return_type'])
 
 
             end_time = time.time()  # 記錄結束時間
