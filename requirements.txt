@@ -7,3 +7,5 @@ gradio
 regex
 ollama
 anthropic
+pdoc
+yaml
