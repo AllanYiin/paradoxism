@@ -18,15 +18,18 @@ jobs:
           python-version: '3.x'
 
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
 
       - name: Generate Documentation
-        run: pdoc --output-dir docs paradoxism
+        run: |
+          pdoc --output-dir docs paradoxism
 
       - name: Push to Wiki
+        env:  # 確保使用 GitHub Actions 的身份進行推送
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git clone https://github.com/AllanYiin/paradoxism.wiki.git
-     
           cp -r docs/* paradoxism.wiki/
           cd paradoxism.wiki
           git add .
