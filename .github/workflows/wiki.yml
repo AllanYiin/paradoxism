@@ -18,7 +18,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install Dependencies
-        run: pip install pdoc
+        run: pip install -r requirements.txt
 
       - name: Generate Documentation
         run: pdoc --output-dir docs paradoxism
@@ -26,6 +26,7 @@ jobs:
       - name: Push to Wiki
         run: |
           git clone https://github.com/AllanYiin/paradoxism.wiki.git
+     
           cp -r docs/* paradoxism.wiki/
           cd paradoxism.wiki
           git add .
