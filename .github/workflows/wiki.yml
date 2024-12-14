@@ -1,0 +1,33 @@
+name: Deploy Wiki
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: pip install pdoc
+
+      - name: Generate Documentation
+        run: pdoc --html paradoxism --output-dir docs
+
+      - name: Push to Wiki
+        run: |
+          git clone https://github.com/AllanYiin/paradoxism.wiki.git
+          cp -r docs/* paradoxism.wiki/
+          cd paradoxism.wiki
+          git add .
+          git commit -m "Update wiki"
+          git push
