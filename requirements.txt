@@ -8,4 +8,4 @@ regex
 ollama
 anthropic
 pdoc
-yaml
+pyyaml
