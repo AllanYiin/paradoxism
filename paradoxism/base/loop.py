@@ -1,13 +1,14 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
 import os
-from itertools import accumulate, combinations
-from paradoxism.context import get_optimal_workers
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Callable, Any, List, Dict,Iterable, Iterator
+import time
 import traceback
-from paradoxism.context import PrintException
-__all__ = ["PCombinations", "PForEach",  "PMap", "PFilter"]
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
+from itertools import accumulate, combinations
+from typing import Callable, Iterable, Iterator
+
+from paradoxism.context import get_optimal_workers
+
+__all__ = ["PCombinations", "PForEach", "PMap", "PFilter"]
 
 
 def retry_with_fallback(func, value, index, max_retries=3, delay=0.5):
@@ -28,15 +29,16 @@ def retry_with_fallback(func, value, index, max_retries=3, delay=0.5):
             else:
                 print(f"重試 {attempt + 1}/{max_retries} 失敗: 返回 None, 索引: {index}, 值: {value}")
         except Exception as e:
-            print(f"重試 {attempt + 1}/{max_retries} 遇到異常: 索引: {index}, 值: {value}, 異常原因: {traceback.format_exc()}")
+            print(
+                f"重試 {attempt + 1}/{max_retries} 遇到異常: 索引: {index}, 值: {value}, 異常原因: {traceback.format_exc()}")
         time.sleep(delay)
 
     print(f"達到最大重試次數: {max_retries}，放棄索引: {index}, 值: {value}")
     return None
 
 
-
-def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, output_type="list", rate_limit_per_minute=None):
+def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, output_type="list",
+             rate_limit_per_minute=None):
     """
     平行地對每個枚舉值應用函數，並返回結果列表或字典，支援重試機制和速率限制。
 
@@ -97,6 +99,8 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
     if output_type == "dict":
         return dict(zip(enumerable, results))
     return results
+
+
 def PAccumulate(func, enumerable, max_workers=None, rate_limit_per_minute=None):
     """
     平行地累加每個枚舉值，類似於 itertools.accumulate。
@@ -139,7 +143,9 @@ def PAccumulate(func, enumerable, max_workers=None, rate_limit_per_minute=None):
 
     return results
 
-def PCombinations(func, enumerable, r, max_workers=None, max_retries=3, delay=0.5, output_type="list", rate_limit_per_minute=None):
+
+def PCombinations(func, enumerable, r, max_workers=None, max_retries=3, delay=0.5, output_type="list",
+                  rate_limit_per_minute=None):
     """
     平行計算所有長度為 r 的組合，並將指定函數應用於每個組合，結果順序與輸入順序一致。
     """
@@ -171,11 +177,13 @@ def PCombinations(func, enumerable, r, max_workers=None, max_retries=3, delay=0.
             except Exception as exc:
                 print(f'組合 {combinations_list[index]} 執行失敗: {exc}')
                 results[index] = None  # 記錄異常情況
-    if output_type=="dict":
+    if output_type == "dict":
         return dict(zip(combinations_list, results))
     return results
 
-def PMap(func: Callable, enumerable: Iterable, max_workers=None, max_retries=3, delay=0.5, rate_limit_per_minute=None) -> Iterator:
+
+def PMap(func: Callable, enumerable: Iterable, max_workers=None, max_retries=3, delay=0.5,
+         rate_limit_per_minute=None) -> Iterator:
     """
     平行地對每個枚舉值應用函數並返回惰性求值的迭代器，支援重試機制。
     :param func: 需要應用的函數
@@ -205,6 +213,8 @@ def PMap(func: Callable, enumerable: Iterable, max_workers=None, max_retries=3, 
 
         # 返回迭代器以支援惰性求值
         return results
+
+
 def PFilter(predicate, enumerable, max_workers=None, max_retries=3, delay=0.5, rate_limit_per_minute=None):
     """
     平行地對每個枚舉值應用判斷函數，並返回符合條件的結果列表，支援重試機制和速率限制。
@@ -259,6 +269,7 @@ def PFilter(predicate, enumerable, max_workers=None, max_retries=3, delay=0.5, r
 
     return [result for result in results if result is not None]
 
+
 def PChain(*iterables, max_workers=None, rate_limit_per_minute=None):
     """
     平行地鏈接多個可迭代對象，類似於 itertools.chain。
@@ -285,7 +296,8 @@ def PChain(*iterables, max_workers=None, rate_limit_per_minute=None):
         for idx, iterable in enumerate(iterables):
             if interval is not None and idx > 0:
                 time.sleep(interval)
-            futures.append(executor.submit(list, iterable if not isinstance(iterable, (type(x for x in []), type(iter([])))) else list(iterable)))
+            futures.append(executor.submit(list, iterable if not isinstance(iterable, (
+            type(x for x in []), type(iter([])))) else list(iterable)))
 
         for future in as_completed(futures):
             try:
