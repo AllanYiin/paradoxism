@@ -102,22 +102,26 @@ class OpenAIClient(LLMClient):
                        'frequency_penalty': 0}
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-    def chat_completion_request(self, message_with_context, stream=False, use_tool=False,**kwargs):
+    def chat_completion_request(self, message_with_context, stream=False, use_tool=False,is_json=None,**kwargs):
         parameters=kwargs
         if 'max_tokens' in kwargs and kwargs['max_tokens'] != "NOT_GIVEN":
             parameters['max_tokens'] = int(kwargs['max_tokens'])
 
-        return self.client.chat.completions.create(
-            model=self.model,
-            messages=message_with_context,
-            temperature=self.temperature,
-            top_p=parameters.get('top_p'),
-            n=1,
-            max_tokens=parameters.get('max_tokens', NOT_GIVEN),
-            presence_penalty=parameters.get('presence_penalty'),
-            frequency_penalty=parameters.get('frequency_penalty'),
-            stream=stream
-        )
+        payload = {
+            "model": self.model,
+            "messages": message_with_context,
+            "temperature": self.temperature,
+            "top_p": parameters.get('top_p'),
+            "n": 1,
+            "max_tokens": parameters.get('max_tokens', NOT_GIVEN),
+            "presence_penalty": parameters.get('presence_penalty'),
+            "frequency_penalty": parameters.get('frequency_penalty'),
+            "stream": stream
+        }
+        if is_json:
+            payload['response_format'] = {"type": "json_object"}
+
+        return self.client.chat.completions.create(**payload)
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
     async def async_chat_completion_request(self, message_with_context, stream=False, use_tool=False,**kwargs):
@@ -125,18 +129,21 @@ class OpenAIClient(LLMClient):
         if 'max_tokens' in kwargs and kwargs['max_tokens'] != "NOT_GIVEN":
             parameters['max_tokens'] = int(kwargs['max_tokens'])
 
+        payload = {
+            "model": self.model,
+            "messages": message_with_context,
+            "temperature": self.temperature,
+            "top_p": parameters.get('top_p'),
+            "n": 1,
+            "max_tokens": parameters.get('max_tokens', NOT_GIVEN),
+            "presence_penalty": parameters.get('presence_penalty'),
+            "frequency_penalty": parameters.get('frequency_penalty'),
+            "stream": stream
+        }
+        if is_json:
+            payload['response_format'] = {"type": "json_object"}
 
-        return await self.aclient.chat.completions.create(
-            model=self.model,
-            messages=message_with_context,
-            temperature=parameters.get('temperature'),
-            top_p=parameters.get('top_p'),
-            n=parameters.get('n', 1),
-            max_tokens=parameters.get('max_tokens', NOT_GIVEN),
-            presence_penalty=parameters.get('presence_penalty'),
-            frequency_penalty=parameters.get('frequency_penalty'),
-            stream=stream
-        )
+        return await self.aclient.chat.completions.create(**payload)
 
     async def generate_summary(self, content):
         prompt = f"請將以下內容總結為筆記，所有重要知識點以及關鍵資訊應該盡可能保留:\n\n{content}"
@@ -150,13 +157,15 @@ class OpenAIClient(LLMClient):
         return summary
 
 
-    def generate(self, prompt: str,stream=False) -> str:
+    def generate(self, prompt: str,is_json=None,stream=False,system_prompt=None) -> str:
         """生成 LLM 的回應。"""
+        if not system_prompt:
+            system_prompt=self.system_prompt
         messages_with_context = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
         ]
-        response = self.chat_completion_request(messages_with_context, stream=stream)
+        response = self.chat_completion_request(messages_with_context, is_json=is_json,stream=stream)
         if not stream:
             return response.choices[0].message.content.strip()
         # else:

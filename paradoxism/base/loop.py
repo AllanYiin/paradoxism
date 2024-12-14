@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 from itertools import accumulate, combinations
 from typing import Callable, Iterable, Iterator
-
 from paradoxism.context import get_optimal_workers
 
 __all__ = ["PCombinations", "PForEach", "PMap", "PFilter"]

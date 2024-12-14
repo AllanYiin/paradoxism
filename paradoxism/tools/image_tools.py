@@ -27,12 +27,13 @@ def generate_image_filename(prompt: str, n) -> str:
 
 def save_image_with_metadata(image: Image.Image, prompt: str, filename: str):
     meta = PngImagePlugin.PngInfo()
-    meta.add_text("DALL-E Prompt", prompt)
-
-    image.save(filename, "PNG", pnginfo=meta)
-
-@tool()
-def text2im(prompt, size="1792x1024", quality="standard", style='natural',**kwargs):
+    if prompt:
+        meta.add_text("DALL-E Prompt", prompt)
+        image.save(filename, "PNG", pnginfo=meta)
+    else:
+        image.save(filename, "PNG")
+@tool('gpt-4o')
+def text2im(prompt, size="1792x1024", quality="standard", style='natural',save_folder="./generate_images",save_filename=None,**kwargs):
     """
     輸入文字prompt以生成圖片的工具函數
     Args:
@@ -40,6 +41,8 @@ def text2im(prompt, size="1792x1024", quality="standard", style='natural',**kwar
         size: 共計有"1792x1024", "1024x1024", "1024x1792"三種選項  若是要做簡報或是提案書建議使用"1792x1024"，若是做logo請使用"1024x1024"，預設為"1792x1024"
         quality:預設皆為"standard"
         style:可用選項為'natural'以及vivid,預設為'natural'
+        save_folder:圖片存放路徑
+        save_filename:圖片檔名
         **kwargs:
 
     Returns:
@@ -57,17 +60,22 @@ def text2im(prompt, size="1792x1024", quality="standard", style='natural',**kwar
     )
     n=1
     images = []
-    make_dir_if_need("./generate_images")
+    make_dir_if_need(save_folder)
+    if save_filename:
+        name, extension = os.path.splitext(save_filename)
+        if not extension:
+            save_filename=save_filename+'.png'
+
+
     for _i in range(n):
         revised_prompt=response.data[_i].revised_prompt
-        image_file = "./generate_images/{0}".format(generate_image_filename(revised_prompt, _i))
-
+        image_file = os.path.join(save_folder,save_filename if save_filename else generate_image_filename(revised_prompt, _i))
         img_data = requests.get(response.data[_i].url).content
         save_image_with_metadata(Image.open(BytesIO(img_data)), revised_prompt, image_file)
 
     return image_file
 
-@tool()
+@tool('azure')
 def im2text(prompt,img_path,**kwargs):
     """
 

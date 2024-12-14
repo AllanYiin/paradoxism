@@ -32,6 +32,11 @@ def get_llm(provider_or_model_name, system_prompt, temperature=0.2, **kwargs):
             if provider_or_model_name.lower() in v:
                 llm_client = get_class(provider_mapping[k] , fn_modules)
                 return llm_client(model=provider_or_model_name,system_prompt=system_prompt, temperature=0.2, **kwargs)
+        if llm_client is None:
+            for k, v in oai.items():
+                if provider_or_model_name.lower() ==k:
+                    llm_client = get_class(provider_mapping["azure"], fn_modules)
+                    return llm_client(model=provider_or_model_name, system_prompt=system_prompt, temperature=0.2, **kwargs)
     if llm_client is None:
         raise ValueError('Unknown llm provider')
 

@@ -2,6 +2,19 @@ from paradoxism.base.agent import agent
 from paradoxism.ops.base import prompt
 from paradoxism.utils.utils import *
 
+@agent('gpt-4o',system_prompt='你是一個有10年以上口譯經驗且曾經旅居海外的英語翻譯師')
+def en_translator(sentence:str)->str:
+    """
+    你懂得根據輸入內容的原意與語境，在最大程度保留原本文字的風格與言外之意的情況下，翻譯成兼具信達雅的英文版本
+    """
+    result=prompt(f'請將以下內容翻譯成英文，直接輸出，無須解釋:\n\n"""{sentence}"""')
+    return result
+
+print(en_translator('紅豆生南國，春來發幾枝。願君多採擷，此物最相思'))
+
+
+
+
 @agent(model='gpt-4o',system_prompt='你是一個擅長多國語言的的翻譯高手，你懂得根據輸入內容的原意與語境，在最大程度保留原本文字的風格與言外之意的情況下，翻譯成兼具信達雅的指定語種版本')
 def translator(input_string, to_language):
     translated_result= prompt(f'請將以下內容翻譯成{to_language}，直接輸出，無須解釋:\n\n"""{input_string}"""')
@@ -40,8 +53,8 @@ def full_translate(input_string,to_language):
 
 
 input_string_zh='昨夜雨疏風驟，濃睡不消殘酒。試問卷簾人，卻道海棠依舊。知否，知否？應是綠肥紅瘦'
-input_string_en="""To dissimulate is to feign not to have what one has. To simulate is to feign to have what one hasn't. One implies a presence, the other an absence. But the matter is more complicated, since to simulate is not simply to feign: "Someone who feigns an illness can simply go to bed and pretend he is ill. Someone who simulates an illness produces in himself some of the symptoms" (Littre). Thus, feigning or dissimulating leaves the reality principle intact: the difference is always clear, it is only masked; whereas simulation threatens the difference between "true" and "false", between "real" and "imaginary". Since the simulator produces "true" symptoms, is he or she ill or not? The simulator cannot be treated objectively either as ill, or as not ill. Psychology and medicine stop at this point, before a thereafter undiscoverable truth of the illness. For if any symptom can be "produced," and can no longer be accepted as a fact of nature, then every illness may be considered as simulatable and simulated, and medicine loses its meaning since it only knows how to treat "true" illnesses by their objective causes. Psychosomatics evolves in a dubious way on the edge of the illness principle. As for psychoanalysis, it transfers the symptom from the organic to the unconscious order: once again, the latter is held to be real, more real than the former; but why should simulation stop at the portals of the unconscious? Why couldn't the "work" of the unconscious be "produced" in the same way as any other symptom in classical medicine? Dreams already are."""
-
+# input_string_en="""To dissimulate is to feign not to have what one has. To simulate is to feign to have what one hasn't. One implies a presence, the other an absence. But the matter is more complicated, since to simulate is not simply to feign: "Someone who feigns an illness can simply go to bed and pretend he is ill. Someone who simulates an illness produces in himself some of the symptoms" (Littre). Thus, feigning or dissimulating leaves the reality principle intact: the difference is always clear, it is only masked; whereas simulation threatens the difference between "true" and "false", between "real" and "imaginary". Since the simulator produces "true" symptoms, is he or she ill or not? The simulator cannot be treated objectively either as ill, or as not ill. Psychology and medicine stop at this point, before a thereafter undiscoverable truth of the illness. For if any symptom can be "produced," and can no longer be accepted as a fact of nature, then every illness may be considered as simulatable and simulated, and medicine loses its meaning since it only knows how to treat "true" illnesses by their objective causes. Psychosomatics evolves in a dubious way on the edge of the illness principle. As for psychoanalysis, it transfers the symptom from the organic to the unconscious order: once again, the latter is held to be real, more real than the former; but why should simulation stop at the portals of the unconscious? Why couldn't the "work" of the unconscious be "produced" in the same way as any other symptom in classical medicine? Dreams already are."""
+#
 full_translate(input_string_zh,to_language='en-US')
-full_translate(input_string_zh,to_language='jp-JP')
-full_translate(input_string_en,to_language='zh-TW')
+# full_translate(input_string_zh,to_language='jp-JP')
+# full_translate(input_string_en,to_language='zh-TW')

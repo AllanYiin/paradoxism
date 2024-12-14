@@ -5,7 +5,7 @@ from paradoxism.ops.base import prompt
 from paradoxism.tools.image_tools import *
 from paradoxism.tools.web_tools import *
 
-@tool()
+@tool('gpt-4o')
 def query_yahoo_news(stock_id, stock_name)->dict:
     """
     Args:

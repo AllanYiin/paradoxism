@@ -6,7 +6,7 @@ import requests
 
 from paradoxism.utils.utils import *
 from paradoxism.utils import regex_utils, web_utils
-
+import pysnooper
 
 __all__ = ["quick_search","open_url","detail_search"]
 
@@ -187,7 +187,8 @@ def open_url(url,**kwargs):
         except:
             PrintException()
     else:
-        new_results = web_utils.retrieve_clear_html(url)
+        #new_results = web_utils.retrieve_clear_html(url)
+        new_results = web_utils.get_html_content(url)
         return new_results
 
 def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):

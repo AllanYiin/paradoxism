@@ -20,22 +20,18 @@ from pydoc import locate
 from openai import AzureOpenAI,AsyncAzureOpenAI
 from concurrent.futures import ThreadPoolExecutor
 from typing import Union, List, Dict, Any
+from typing import TypeAlias  # Python 3.10 開始支持 TypeAlias
+from typing import get_type_hints
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias  # Python 3.10 開始支持 TypeAlias
-    from inspect import get_type_hints
-else:
-    TypeAlias = Any  # 對於 3.10 以前的版本，TypeAlias 只是個別名
-    from typing import get_type_hints
 
 
 _paradoxism_context = None
 
 __all__ = ["sanitize_path", "split_path", "make_dir_if_need", "_context", "get_sitepackages", "PrintException",
-           "model_info","oai","get_class","JSON","xml","is_instance","get_time_suffix","get_sitepackages","get_type_hints"]
+           "model_info","oai","get_class","JSON","xml","is_instance","get_time_suffix","get_sitepackages","get_optimal_workers"]
 
 
-get_type_hints=get_type_hints
+
 
 JSON: TypeAlias = Union[Dict[str, "JSON"], List["JSON"], str, int, float, bool, None]
 xml:TypeAlias  = Union["ET.Element", "etree._Element"]
@@ -231,6 +227,27 @@ def get_class(class_name, module_paths=None):
         class_ = locate(class_name)
         raise ValueError("Class not found in {}: {}".format(module_paths, class_name))
     return class_  # type: ignore
+
+
+
+def get_optimal_workers():
+    """
+    獲取合理的工作者數量，基於當前的 CPU 核心數量和系統負載。
+
+    :return: 最佳的工作者數量
+    """
+    cpu_count = os.cpu_count() or 1
+    load_avg = os.getloadavg()[0] if hasattr(os, 'getloadavg') else 0
+    # 改進估算：基於 CPU 核心數量，並根據當前系統負載動態調整
+    # 如果負載遠高於 CPU 核心數，減少 worker 數量；負載較低時增加 worker 數量
+    if load_avg > cpu_count * 1.5:
+        optimal_workers = max(1, int(cpu_count / 4))  # 負載過高，僅保留四分之一的 worker
+    elif load_avg > cpu_count:
+        optimal_workers = max(1, int(cpu_count / 2))  # 負載高，減少一半的 worker
+    else:
+        optimal_workers = max(1, int(cpu_count / (1 + load_avg)))  # 負載適中或低，動態調整
+    return optimal_workers
+
 
 class Logger:
     def __init__(self, filename):

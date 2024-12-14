@@ -1,6 +1,7 @@
 import re
 from collections import OrderedDict
-__all__ = ["parse_docstring"]
+from typing import Any, Dict, List, Tuple
+__all__ = ["parse_docstring","extract_function_info"]
 
 def detect_style(docstring: str) -> str:
     """
@@ -160,21 +161,41 @@ def parse_google_style(docstring: str) -> dict:
     if returns_match:
         static_parts.append(docstring[returns_match.end():].strip())
 
-    result['static_instruction'] = '\n\n'.join(static_parts)
+    result['static_instruction'] = ('\n\n'.join(static_parts)).strip()
 
     # 解析 input_args
     if params_match:
         params_section = docstring[params_match.end():returns_match.start() if returns_match else None].strip().splitlines()
 
         for line in params_section:
+            # 尝试匹配标准写法：参数名 (类型): 描述
             match = re.match(r'\s*(\w+)\s*\((\w+)\):\s*(.*)', line)
             if match:
                 arg_name, arg_type, arg_desc = match.groups()
-                result['input_args'].append({
-                    'arg_name': arg_name,
-                    'arg_type': arg_type,
-                    'arg_desc': arg_desc
-                })
+            else:
+                # 尝试匹配类型在冒号后的写法：参数名: 类型 描述
+                match = re.match(r'\s*(\w+)\s*:\s*(\w+)\s*(.*)', line)
+                if match:
+                    arg_name, arg_type, arg_desc = match.groups()
+                else:
+                    # 如果没有匹配到类型，假设类型未知
+                    match = re.match(r'\s*(\w+)\s*:\s*(.*)', line)
+                    if match:
+                        arg_name, arg_desc = match.groups()
+                        arg_type = 'Unknown'
+                    else:
+                        continue
+
+            # 处理将 str 误写为 string 的情况
+            if arg_type.lower() == 'string':
+                arg_type = 'str'
+
+            result['input_args'].append({
+                'arg_name': arg_name,
+                'arg_type': arg_type,
+                'arg_desc': arg_desc
+            })
+
 
     # 解析 return
     if returns_match:
@@ -385,3 +406,70 @@ def parse_restructuredtext_style(docstring: str) -> dict:
     return result
 
 
+def extract_function_info(func) -> Dict[str, Any]:
+    result = {
+        'static_instruction': '',
+        'input_args': [],
+        'return': []
+    }
+    docstring_info={}
+    # 獲取函數的型別提示
+    type_hints = inspect.signature(func).parameters
+    return_hint = inspect.signature(func).return_annotation
+    docstring = inspect.getdoc(func)
+
+    # 解析 docstring
+    if docstring:
+        docstring_info=parse_docstring(docstring)
+
+        # 提取參數資訊
+    for param_name, param in type_hints.items():
+        # 優先判斷 type hinting
+        if param.annotation != inspect.Parameter.empty:
+            arg_type = str(param.annotation)
+        # 其次判斷預設值的類型
+        elif param.default != inspect.Parameter.empty:
+            arg_type = type(param.default).__name__
+        # 最後檢查 docstring 的描述
+        else:
+            arg_type = 'Unknown'  # 無法解析則設為 Unknown
+
+        # 查找 docstring 的參數描述
+        arg_desc = next((info['arg_desc'] for info in docstring_info['input_args'] if info['arg_name'] == param_name),
+                        '')
+
+    # 處理回傳值，考慮多個回傳值的情況
+    if return_hint != inspect.Signature.empty:
+        # 若回傳值是 Tuple，解析每個元素的類型
+        if hasattr(return_hint, '__origin__') and return_hint.__origin__ == Tuple:
+            for i, subtype in enumerate(return_hint.__args__):
+                return_type = str(subtype) if subtype != inspect.Signature.empty else 'Unknown'
+                return_desc = docstring_info['return'][i]['return_desc'] if i < len(
+                    docstring_info['return']) else ''
+
+                result['return'].append({
+                    'return_name': f'return_{i}',
+                    'return_index': i,
+                    'return_type': return_type,
+                    'return_desc': return_desc
+                })
+        else:
+            # 單一回傳值情況
+            return_type = str(return_hint)
+            return_desc = docstring_info['return'][0]['return_desc'] if docstring_info['return'] else ''
+            result['return'].append({
+                'return_name': '',
+                'return_index': 0,
+                'return_type': return_type,
+                'return_desc': return_desc
+            })
+    else:
+        # 無法解析的回傳值情況
+        result['return'].append({
+            'return_name': '',
+            'return_index': 0,
+            'return_type': 'Unknown',
+            'return_desc': ''
+        })
+
+    return result

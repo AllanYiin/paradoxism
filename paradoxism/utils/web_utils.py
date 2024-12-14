@@ -27,11 +27,11 @@ from paradoxism.utils.markdown_utils import HTML2Text, htmltable2markdown
 from paradoxism.utils.text_utils import seg_as_sentence, optimal_grouping
 from paradoxism.utils.regex_utils import count_words
 
-__all__ = ["search_google", "search_bing", "user_agents", "md4html", "strip_tags", "retrieve_clear_html", "search_web"]
+__all__ = ["search_google", "search_bing", "user_agents", "md4html", "strip_tags", "retrieve_clear_html","get_html_content", "search_web"]
 
 ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
 
-
+import pysnooper
 def prepare_chrome_options():
     chrome_options = Options()
     chrome_options.add_argument('--headless=old')
@@ -597,6 +597,194 @@ def retrieve_clear_html(url):
         return None
 
 
+def optimize_html(html):
+    tag_list = ['header', 'copyright', 'footer', 'telephone', 'breadcrumb', 'crumb', 'menu', 'accordion', 'modal',
+                'loading', 'shopping_cart']
+    remove_tags = ['style', 'script', 'noscript']
+
+    soup = BeautifulSoup(html, 'html.parser')
+    title = ''
+    if soup.find('title'):
+        title = soup.find('title').text.strip()
+        soup.name=title
+    # 1. 刪除所有封閉且無內容的標籤
+    for tag in soup.find_all(True, recursive=True):  # True 表示找到所有標籤
+        if not tag.contents:  # 檢查標籤是否為空
+            tag.decompose()
+    # 2. 刪除指定的標籤，一次性處理
+    tags_to_remove = ['style', 'script', 'nav', 'button', 'input', 'select', 'option', 'dd', 'dt', 'dl', 'abbr', 'svg',
+                      'menu', 'path', 'iframe', 'img','form']
+    for match in soup.find_all(tags_to_remove, recursive=True):
+        match.decompose()  # 完全刪除指定的標籤
+
+    # 3. 將僅作為容器的特定標籤用其子標籤替代
+    container_tags = ['div', 'li', 'ul', 'ol', 'section', 'article', 'header', 'footer', 'aside', 'span']
+
+    for tag in soup.find_all(container_tags, recursive=True):
+        # 若該標籤的 get_text 與所有子標籤的 get_text 加總相同，則替換為子標籤
+        if tag.get_text(strip=True) == '\n'.join(child.get_text(strip=True) for child in tag.find_all(recursive=False)):
+            tag.unwrap()
+
+    # 4. 替換 <span> 標籤為純文字
+    for span in soup.find_all('span'):
+        span.replace_with(span.get_text())
+
+    # 5. 替換 <p> 標籤，並在文字前後加換行符號
+    for _p in soup.find_all('p'):
+        _p.replace_with('\n' + _p.get_text() + '\n')
+
+    # 6. 處理 <h1> 至 <h6> 標籤
+    for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+        tagtext = tag.get_text()
+        tag.attrs = {}  # 清空所有屬性
+        tag.attrs['text'] = tagtext  # 設定 text 屬性為純文字內容
+
+    # 根據 tag_list 進行條件判斷刪除
+    if tag.attrs.get("id") and any(t.lower() in tag.attrs["id"].lower() for t in tag_list):
+        tag.decompose()
+    elif tag.attrs.get("class") and any(t.lower() in ' '.join(tag.attrs["class"]).lower() for t in tag_list):
+        tag.decompose()
+
+    # 7. 處理 <a> 標籤：只保留 href 屬性且 href 長度不超過 320
+    for a_tag in soup.find_all('a'):
+        href = a_tag.get('href') if 'href' in a_tag else a_tag.attrs.get('href')
+        # 若 href 存在且長度不超過 320，則只保留 href 屬性；否則刪除該 <a> 標籤
+        if href:
+            # 檢查是否符合 ".html" 後有 ; 或 : 的情況，並進行截斷
+            match = re.match(r'(.+?\.html)([;:].*)', href)
+            if match:
+                href = match.group(1)  # 截斷至 .html
+
+            # 若 href 超過 320 字元，則刪除整個 <a> 標籤；否則僅保留 href 屬性
+            if len(href) <= 320:
+                a_tag.attrs = {'href': href}
+            else:
+                a_tag.decompose()  # 移除 href 過長的 <a> 標籤
+        else:
+            a_tag.decompose()  # 若 href 不存在，則直接移除 <a> 標籤
+
+    # 處理類似表格的結構
+    table_likes = soup.find_all(detect_table_like_structure)
+    for tl in table_likes:
+        tl.replaceWith(table_like_to_table(soup, tl, title))
+
+    return soup
+
+
+# 在主函數中使用
+def get_html_content(url):
+    chrome_options = prepare_chrome_options()
+    chrome_options.add_argument('user-agent=%s' % random.choice(user_agents))
+    html_content = None
+    window_size = None
+
+    try:
+        with webdriver.Chrome(options=chrome_options) as driver:
+            driver.get(url)
+            driver.implicitly_wait(4)
+            #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
+
+            # 獲取頁面尺寸
+            window_size = driver.get_window_size()
+            outer_divs = driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div")
+
+            # 設置分類清單
+            contents = []
+            banners = []
+
+            # 計算文字單詞數
+            def count_words(text):
+                return len(text.split())
+
+            # 遍歷所有 div 元素並應用條件
+            for d in driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div"):
+                try:
+                    if d.text=='' or not d.is_displayed() or d.rect['height'] is None or d.rect['width'] is None or d.rect['height'] == 0 or d.rect['width'] == 0 or (d.rect['height'] * d.rect['width']< 100):
+                        banners.append(d)
+                        continue
+                    elif d.rect['height'] / d.rect['width'] > 5:
+                        banners.append(d)
+                        continue
+                    # drect = copy.deepcopy(d.rect)
+                    # drect['outerHTML'] = d.get_attribute('outerHTML').strip()
+                    # drect['text'] = d.get_attribute("textContent").strip()
+                    #
+                    # # 基本過濾條件
+                    # if not d.is_displayed():
+                    #     continue
+                    # if drect['height'] is None or drect['width'] is None or drect['height'] == 0 or drect['width'] == 0:
+                    #     continue
+                    # if drect['height'] * drect['width'] < 100:
+                    #     continue
+                    #
+                    # # 判斷「重要內容」
+                    # if (window_height > 0 and drect['height'] / window_height > 0.6 and drect[
+                    #     'width'] / window_width > 0.6 and
+                    #         not (drect['x'] == 0 and drect['y'] == 0)):
+                    #     if len(drect['text']) > 10:
+                    #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
+                    #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and len(
+                    #                     drect['text']) > 50 and len(contents[-1]['text']) > 50:
+                    #                 pass
+                    #             else:
+                    #                 contents.append(drect)
+                    #
+                    # # 判斷「橫幅區域」
+                    # elif (drect['height'] / drect['width'] > 5 and drect['height'] > 0.5 * window_height and
+                    #       (drect['x'] < window_width / 4 or drect['x'] > 3 * window_width / 4)):
+                    #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
+                    #         banners.append(drect)
+                    #
+                    # # 判斷寬橫幅
+                    # elif (drect['height'] > 0 and window_width > 0 and (drect['width'] / drect['height']) / (
+                    #         window_width / window_height) > 5 and
+                    #       drect['width'] > 0.5 * window_width and (
+                    #               drect['y'] < window_height / 4 or drect['y'] > 3 * window_height / 4)):
+                    #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
+                    #         banners.append(drect)
+                    #
+                    # # 進一步的「重要內容」判斷
+                    # elif (drect['height'] and 0.5 < drect['width'] / drect['height'] < 2 and
+                    #       drect['width'] > 0.5 * window_width and drect['height'] > 0.5 * window_height and drect[
+                    #           'y'] < window_height / 3):
+                    #     if count_words(drect['text']) > 10:
+                    #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
+                    #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and count_words(
+                    #                     drect['text']) > 50 and count_words(contents[-1]['text']) > 50:
+                    #                 pass
+                    #             else:
+                    #                 contents.append(drect)
+
+                except Exception as e:
+                    print(f"元素處理失敗：{e}")
+
+
+            # 獲取HTML內容
+            head_html = driver.find_element(By.TAG_NAME, 'head').get_attribute('outerHTML')
+            body_html = driver.find_element(By.TAG_NAME, 'body').get_attribute('outerHTML')
+            for elem in banners:
+                _html=elem.get_attribute('outerHTML')
+                if _html in body_html:
+                    body_html=body_html.replace(_html,'')
+            html_content ='<html>' + head_html + body_html + '</html>'
+
+        # WebDriver 在這裡被釋放
+
+        if html_content:
+            soup = optimize_html(html_content)
+            if not soup.name :
+                soup.name='web'
+            return soup.prettify(formatter="html")
+        else:
+            logging.error(f"Failed to retrieve HTML content from {url}")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error accessing {url}: {str(e)}")
+        PrintException()
+        return None
+
+@pysnooper.snoop()
 def search_web(url: str) -> list:
     """
 
@@ -926,6 +1114,7 @@ def cleasing_web_text(text: str):
 #             freq[len(t)] += len(t)
 #     sorted_freq = sorted(freq.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)
 #     sorted_freq = {k: v for k, v in sorted_freq}
+
 #     total_words = np.array(text_lens).sum()
 #     keys = np.array(list(sorted_freq.keys()))
 #     text_lens_ratio = np.array(list(sorted_freq.values())) / total_words

@@ -4,11 +4,10 @@ import sys
 import traceback
 import inspect
 import linecache
-__all__ = ['to_json','PrintException', 'sanitize_path', 'split_path', 'make_dir_if_need','yellow_color','red_color','gray_color','green_color','orange_color','blue_color','cyan_color','violet_color']
+__all__ = ['PrintException', 'sanitize_path', 'split_path', 'make_dir_if_need','yellow_color','red_color','gray_color','green_color','orange_color','blue_color','cyan_color','violet_color']
 
 
-def to_json(data):
-    return json.dumps(data, ensure_ascii=False, indent=4)
+
 
 
 def PrintException():

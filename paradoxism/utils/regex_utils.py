@@ -1,8 +1,9 @@
 import regex
+import json
 from functools import lru_cache
 
 __all__ = [
-    "choice_pattern", "delta_pattern", "json_pattern", 'numbered_list_member_pattern', 'unordered_listitem_pattern',
+    "choice_pattern", "delta_pattern","json_uncompile_pattern", "json_pattern", 'numbered_list_member_pattern', 'unordered_listitem_pattern',
     "replace_special_chars", 'extract_score', 'extract_code', 'triplequote_pattern', 'is_numbered_list_member',
     'is_unordered_list_member', 'extract_numbered_list_member', 'find_all_placeholders', 'md_table_pattern',
     'count_words','extract_json']
@@ -11,7 +12,17 @@ choice_pattern = regex.compile(r'"choices":\s*\[(\{.*?\})\]')
 
 delta_pattern = regex.compile(r'"delta":\s*{"content":"([^"]*)"}')
 
-json_pattern = regex.compile(r'\{(?:[^{}]|(?R))*\}')
+
+json_uncompile_pattern =r"""
+    \{                         # 匹配開頭 {
+    (?:                        # 非捕獲組
+        [^{}]*                 # 匹配非括號的字符（包括空內容）
+        |                      # 或
+        (?R)                   # 遞迴匹配內部嵌套 {}
+    )*                         # 重複多次
+    \}                         # 匹配結尾 }
+"""
+json_pattern = regex.compile(json_uncompile_pattern)
 
 triplequote_pattern = regex.compile(r"```(.*)```")
 
@@ -106,13 +117,12 @@ def extract_code(text):
         return text
     return code_blocks
 
-
 def extract_json(text):
     # 使用正則表達式查找所有 JSON 區塊
     matches = json_pattern.findall(text)
     json_objects = []
 
-    # 將匹配的 JSON 區塊轉換為 Python 字典
+    # 將匹配的 JSON 區塊轉換為 Python 字典或清單
     for match in matches:
         try:
             json_obj = json.loads(match)
