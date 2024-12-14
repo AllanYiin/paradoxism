@@ -6,7 +6,7 @@ from paradoxism.context import *
 from paradoxism.base.tool import *
 from paradoxism.base.loop import *
 from paradoxism.ops.base import prompt
-from paradoxism.utils.utils import make_dir_if_need,split_path,yellow_color
+from paradoxism.utils import make_dir_if_need,split_path,yellow_color
 from paradoxism.utils.regex_utils import extract_json
 from paradoxism.utils.image_utils import preprocess_image_in_memory, encode_image
 from paradoxism.tools.image_tools import text2im

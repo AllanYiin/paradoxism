@@ -10,7 +10,7 @@ from collections import OrderedDict
 from typing import Callable, Any, get_origin, get_args
 from typing import get_type_hints
 from paradoxism.base.perfm import PerformanceCollector
-from paradoxism.utils.utils import *
+from paradoxism.utils import *
 from paradoxism.utils.docstring_utils import *
 from paradoxism.ops.convert import *
 from paradoxism.llm import *

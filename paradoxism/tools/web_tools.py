@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
-from paradoxism.utils.utils import *
+from paradoxism.utils import *
 from paradoxism.utils import regex_utils, web_utils
 import pysnooper
 

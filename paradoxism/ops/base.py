@@ -6,7 +6,7 @@ import asyncio
 import xmltodict  # 使用第三方庫處理複雜的 XML/HTML
 import yaml
 from typing import Dict, Any
-from paradoxism.utils.utils import *
+from paradoxism.utils import *
 from paradoxism.utils.regex_utils import *
 from paradoxism.base.agent import _thread_local,LLMClient
 from paradoxism.ops.convert import *

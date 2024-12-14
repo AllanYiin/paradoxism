@@ -5,13 +5,13 @@ __all__ = ["parse_docstring","extract_function_info"]
 
 def detect_style(docstring: str) -> str:
     """
-    Detects the style of the given docstring based on its structure and content.
+    根據給定的結構和內容檢測docstring的風格。
 
-    Args:
-        docstring (str): The docstring to analyze.
+    參數:
+        docstring (str): 要分析的docstring。
 
-    Returns:
-        str: The detected style ('plain', 'google', 'numpy', 'epytext', 'restructured').
+    返回:
+        str: 檢測到的風格（'plain'，'google'，'numpy'，'epytext'，'restructured'）。
     """
     if re.search(r'Args:|Returns:', docstring):
         return 'google'
@@ -27,14 +27,14 @@ def detect_style(docstring: str) -> str:
 
 def parse_docstring(docstring: str, style=None) -> dict:
     """
-    Parses a given docstring into a structured dictionary.
+    將給定的docstring解析為結構化的字典。
 
-    Args:
-        docstring (str): The docstring to parse.
-        style (str): The style of the docstring ('plain', 'google', 'numpy', 'epytext', 'restructured'). Default is 'plain'.
+    參數:
+        docstring (str): 要解析的docstring。
+        style (str): docstring的風格（'plain'，'google'，'numpy'，'epytext'，'restructured'）。默認為'plain'。
 
-    Returns:
-        dict: A dictionary containing 'static_instruction', 'input_args', and 'return' information.
+    返回:
+        dict: 包含'static_instruction'，'input_args'和'return'信息的字典。
     """
     result = {
         'static_instruction': '',

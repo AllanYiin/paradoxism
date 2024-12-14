@@ -22,7 +22,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 
-from paradoxism.utils.utils import *
+from paradoxism.utils import *
 from paradoxism.utils.markdown_utils import HTML2Text, htmltable2markdown
 from paradoxism.utils.text_utils import seg_as_sentence, optimal_grouping
 from paradoxism.utils.regex_utils import count_words

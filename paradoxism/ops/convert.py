@@ -8,7 +8,7 @@ from typing import Any, Iterable
 from collections import OrderedDict
 import markdown
 from jsonschema import validate, ValidationError
-from paradoxism.utils.utils import *
+from paradoxism.utils import *
 from paradoxism.utils.regex_utils import *
 __all__ = ["force_cast","target_types","to_json","is_json_serializable"]
 
