@@ -21,7 +21,7 @@ jobs:
         run: pip install pdoc
 
       - name: Generate Documentation
-        run: pdoc --html paradoxism --output-dir docs
+        run: pdoc --output-dir docs paradoxism
 
       - name: Push to Wiki
         run: |
