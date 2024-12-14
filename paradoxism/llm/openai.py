@@ -18,6 +18,22 @@ __all__ = ["OpenAIClient", 'AzureClient']
 
 class OpenAIClient(LLMClient):
     def __init__(self, model='gpt-4o', system_prompt='你是一個萬能的人工智能助理', temperature=0.2, **kwargs):
+        """
+        初始化 OpenAIClient 類別。
+
+        參數:
+            model (str): 使用的模型名稱，預設為 'gpt-4o'。
+            system_prompt (str): 系統提示詞，預設為 '你是一個萬能的人工智能助理'。
+            temperature (float): 溫度參數，用於控制生成文本的隨機性，預設為 0.2。
+            **kwargs: 其他額外參數。
+
+        屬性:
+            client (OpenAI): 同步 OpenAI 客戶端。
+            aclient (AsyncOpenAI): 非同步 OpenAI 客戶端。
+            max_tokens (int): 模型的最大 token 數。
+            model_info (dict): 模型資訊字典。
+            params (dict): 請求參數字典。
+        """
         api_key = os.environ["OPENAI_API_KEY"]
         super().__init__(model,system_prompt,temperature, **kwargs)
         self.client = OpenAI(api_key=api_key)
@@ -103,6 +119,19 @@ class OpenAIClient(LLMClient):
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
     def chat_completion_request(self, message_with_context, stream=False, use_tool=False,is_json=None,**kwargs):
+        """
+        發送聊天完成請求。
+
+        參數:
+            message_with_context (list): 包含上下文的訊息列表。
+            stream (bool): 是否使用流式傳輸，預設為 False。
+            use_tool (bool): 是否使用工具，預設為 False。
+            is_json (bool): 是否返回 JSON 格式，預設為 None。
+            **kwargs: 其他額外參數。
+
+        返回:
+            dict: 聊天完成的回應。
+        """
         parameters=kwargs
         if 'max_tokens' in kwargs and kwargs['max_tokens'] != "NOT_GIVEN":
             parameters['max_tokens'] = int(kwargs['max_tokens'])
@@ -125,6 +154,18 @@ class OpenAIClient(LLMClient):
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
     async def async_chat_completion_request(self, message_with_context, stream=False, use_tool=False,**kwargs):
+        """
+        發送非同步聊天完成請求。
+
+        參數:
+            message_with_context (list): 包含上下文的訊息列表。
+            stream (bool): 是否使用流式傳輸，預設為 False。
+            use_tool (bool): 是否使用工具，預設為 False。
+            **kwargs: 其他額外參數。
+
+        返回:
+            dict: 聊天完成的回應。
+        """
         parameters=kwargs
         if 'max_tokens' in kwargs and kwargs['max_tokens'] != "NOT_GIVEN":
             parameters['max_tokens'] = int(kwargs['max_tokens'])
@@ -146,6 +187,15 @@ class OpenAIClient(LLMClient):
         return await self.aclient.chat.completions.create(**payload)
 
     async def generate_summary(self, content):
+        """
+        生成內容摘要。
+
+        參數:
+            content (str): 要總結的內容。
+
+        返回:
+            dict: 生成的摘要。
+        """
         prompt = f"請將以下內容總結為筆記，所有重要知識點以及關鍵資訊應該盡可能保留:\n\n{content}"
         message_with_context = [
             {"role": "system", "content": "你是一個萬能的文字幫手"},
@@ -156,9 +206,19 @@ class OpenAIClient(LLMClient):
         summary = await self.async_chat_completion_request(message_with_context, stream=False, use_tool=False)
         return summary
 
-
     def generate(self, prompt: str,is_json=None,stream=False,system_prompt=None) -> str:
-        """生成 LLM 的回應。"""
+        """
+        生成 LLM 的回應。
+
+        參數:
+            prompt (str): 用戶的提示詞。
+            is_json (bool): 是否返回 JSON 格式，預設為 None。
+            stream (bool): 是否使用流式傳輸，預設為 False。
+            system_prompt (str): 系統提示詞，預設為 None。
+
+        返回:
+            str: 生成的回應。
+        """
         if not system_prompt:
             system_prompt=self.system_prompt
         messages_with_context = [
