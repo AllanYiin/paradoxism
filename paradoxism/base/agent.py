@@ -67,28 +67,31 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
         @wraps(func)
         def wrapper(*args, **kwargs_inner):
             instance_id = str(uuid.uuid4())
+            try:
+                # 產生 inputs_dict
+                inputs_dict = _generate_inputs_dict(func, *args, **kwargs_inner)
+                with lock:
+                    _thread_local.input_args = inputs_dict
 
-            # 產生 inputs_dict
-            inputs_dict = _generate_inputs_dict(func, *args, **kwargs_inner)
-            with lock:
-                _thread_local.input_args = inputs_dict
+                # 格式化並解析 docstring
+                docstring = _format_docstring(func.__doc__, inputs_dict)
+                parsed_results = parse_docstring(docstring)
+                type_hints_results = get_type_hints(func)
 
-            # 格式化並解析 docstring
-            docstring = _format_docstring(func.__doc__, inputs_dict)
-            parsed_results = parse_docstring(docstring)
-            type_hints_results = get_type_hints(func)
+                _update_parsed_results(parsed_results, inputs_dict, type_hints_results)
 
-            _update_parsed_results(parsed_results, inputs_dict, type_hints_results)
+                # 生成 agent key
+                func_code = inspect.getsource(func)
+                agent_key = generate_agent_key(system_prompt, parsed_results['static_instruction'], func_code)
 
-            # 生成 agent key
-            func_code = inspect.getsource(func)
-            agent_key = generate_agent_key(system_prompt, parsed_results['static_instruction'], func_code)
+                start_time = time.time()
+                with lock:
+                    _thread_local.llm_client = func.llm_client
+                    _thread_local.static_instruction = parsed_results['static_instruction']
+                    _thread_local.returns = parsed_results['return']
+            except:
+                PrintException()
 
-            start_time = time.time()
-            with lock:
-                _thread_local.llm_client = func.llm_client
-                _thread_local.static_instruction = parsed_results['static_instruction']
-                _thread_local.returns = parsed_results['return']
 
             # 執行函數
             result = execute_function(func, *args, **kwargs_inner)
