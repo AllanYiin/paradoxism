@@ -42,9 +42,26 @@ print(en_translator('紅豆生南國，春來發幾枝。願君多採擷，此�
 """紅豆生南國，春來發幾枝。願君多採擷，此物最相思"""
 agent en_translator executed in 3.0094 seconds
 Red beans grow in the southern land, how many sprout in springtime's hand. I wish you to gather more, for this is what most evokes longing.
+```
+
+## 安裝與教程
+
+安裝程式包
 
 ```
+pip install paradoxism
+```
+
+要開始使用前請注意你必須要擁有有效的語言模型API，並將api儲存於本機環境變數中
+`
+openai: "OPENAI_API_KEY"
+
+claude: "ANTHROPIC_API_KEY"`
+
+azure由於一次可能需要維護數台instance，所以無法儲存於單一環境變數，需要將相關資訊維護於oai.json之中，請參考再專案中有放置oai_sample.json，只要以相同格式維護，將檔名修改為oai.json即可
+
 
 ## 專案願景
 
 **Paradoxism** 旨在革新編程的思維方式，讓開發者不再受限於傳統的語法結構，並能輕鬆將想法轉換為實際代碼。我們的願景是創造一個既自由又嚴謹的編程環境，讓創意得以快速落地，同時保持高效的執行。
+
