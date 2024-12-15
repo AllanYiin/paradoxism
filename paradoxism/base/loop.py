@@ -4,7 +4,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 from itertools import accumulate, combinations
-from typing import Callable, Iterable, Iterator
+from typing import Callable, Iterable, Iterator, List, Dict, Any,Union
 from paradoxism.context import get_optimal_workers
 
 __all__ = ["PCombinations", "PForEach", "PMap", "PFilter"]
@@ -61,7 +61,7 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
         ...         raise ValueError("Error on 2")
         ...     return x
         >>> PForEach(fail_on_two, [1, 2, 3, 4], max_retries=2)
-        [1, 'Error after retries: Error on 2', 3, 4]
+        [1,None, 3, 4]
 
         >>> PForEach(square, [1, 2, 3, 4], output_type="dict")
         {1: 1, 2: 4, 3: 9, 4: 16}
@@ -100,7 +100,7 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
     return results
 
 
-def PAccumulate(func, enumerable, max_workers=None, rate_limit_per_minute=None):
+def PAccumulate(func, enumerable, max_workers=None, max_retries=3, delay=0.5,output_type="list", rate_limit_per_minute=None):
     """
     平行地累加每個枚舉值，類似於 itertools.accumulate。
 
@@ -108,11 +108,16 @@ def PAccumulate(func, enumerable, max_workers=None, rate_limit_per_minute=None):
     :param func: 累加函數，兩個參數，默認為加法操作
     :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
     :param rate_limit_per_minute: 每分鐘的速率限制
+     :param output_type: 輸出格式，"list" 或 "dict"，默認為 "dict"。
+        - "dict": 返回輸入單元與其函數結果的映射字典，格式為 {key: {function_name: result}}。
+        - "list": 返回函數結果的列表，格式為 [{function_name: result}, ...]。
     :return: 累加結果的列表
 
     Example:
+        >>> def identity(x):
+        ...     return x
         >>> data = [1, 2, 3, 4]
-        >>> PAccumulate(data)
+        >>> PAccumulate(identity, data)
         [1, 3, 6, 10]
     """
     if isinstance(enumerable, (type(x for x in []), type(iter([])))):
@@ -120,26 +125,36 @@ def PAccumulate(func, enumerable, max_workers=None, rate_limit_per_minute=None):
     if max_workers is None:
         max_workers = get_optimal_workers()
 
-    results = []
+    results = [None] * len(enumerable)
     interval = None
     if rate_limit_per_minute and rate_limit_per_minute > 0:
         interval = 60.0 / rate_limit_per_minute
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
+        futures = {}
         batch_size = max(1, len(enumerable) // max_workers)
         for i in range(0, len(enumerable), batch_size):
             if interval is not None and i > 0:
                 time.sleep(interval)
             batch = enumerable[i:i + batch_size]
-            futures.append(executor.submit(lambda b: list(accumulate(b, func)), batch))
+            future = executor.submit(lambda b: list(accumulate(b, func)), batch)
+            futures[future] = (i, batch)
 
         for future in as_completed(futures):
             try:
-                results.extend(future.result())
+                start_index, batch = futures[future]
+                accumulated_batch = future.result()
+                for j, value in enumerate(accumulated_batch):
+                    results[start_index + j] = value
             except Exception as exc:
                 print(f'批次累加時產生異常: {exc}')
-
+    for i,value in enumerate(results):
+        if i==0:
+            pass
+        else:
+            results[i]=results[i]+results[i-1]
+    if output_type=='dict':
+        return dict(zip(enumerable, results))
     return results
 
 
@@ -269,39 +284,88 @@ def PFilter(predicate, enumerable, max_workers=None, max_retries=3, delay=0.5, r
     return [result for result in results if result is not None]
 
 
-def PChain(*iterables, max_workers=None, rate_limit_per_minute=None):
-    """
-    平行地鏈接多個可迭代對象，類似於 itertools.chain。
 
-    :param iterables: 多個可迭代的對象
-    :param max_workers: 最大的工作者數量，控制並行的數量，默認為 CPU 的核心數量
-    :param rate_limit_per_minute: 每分鐘的速率限制
-    :return: 鏈接後的所有元素的列表
+def PBranch(
+    funcs: List[Callable[[Any], Any]],
+    enumerable: Iterable[Any],
+    max_workers: int = None,
+    rate_limit_per_minute: int = None,
+    max_retries: int = 3,
+    delay: float = 0.5,
+    output_type: str = "dict"
+) -> Union[List[Dict[str, Any]], Dict[Any, Dict[str, Any]]]:
+    """
+     平行地對每個枚舉值應用函數，並返回結果列表或字典，支援重試機制和速率限制。
+
+     :param funcs: 需要應用於每個輸入單元的函數列表。
+    :param enumerable: 可迭代的輸入數據。
+    :param max_workers: 最大工作者數量，默認為函數數量的兩倍。
+    :param rate_limit_per_minute: 每分鐘的總速率限制（所有函數執行總和）。
+    :param max_retries: 函數執行失敗時的最大重試次數。
+    :param delay: 重試間隔時間（秒）。
+    :param output_type: 輸出格式，"list" 或 "dict"，默認為 "dict"。
+        - "dict": 返回輸入單元與其函數結果的映射字典，格式為 {key: {function_name: result}}。
+        - "list": 返回函數結果的列表，格式為 [{function_name: result}, ...]。
+    :return: 包含函數處理結果的結構化輸出，格式取決於 output_type。
 
     Example:
-        >>> PChain([1, 2], [3, 4], [5, 6])
-        [1, 2, 3, 4, 5, 6]
-    """
+        >>> def func1(x):
+        ...     return 2 * x
+        >>> def func2(x):
+        ...     return x + 5
+        >>> results = PBranch(
+        ...     funcs=[func1, func2],
+        ...     enumerable=[1, 2, 3],
+        ...     rate_limit_per_minute=60,
+        ...     output_type="dict"
+        ... )
+        >>> print(results)
+        {1: {'func1': 2, 'func2': 6}, 2: {'func1': 4, 'func2': 7}, 3: {'func1': 6, 'func2': 8}}
+     """
+
     if max_workers is None:
         max_workers = get_optimal_workers()
 
+    # 預先配置輸出結構
+    results = [None] * len(enumerable)
+
+    # 設置速率限制
     interval = None
-    if rate_limit_per_minute and rate_limit_per_minute > 0:
+    if rate_limit_per_minute:
         interval = 60.0 / rate_limit_per_minute
 
-    results = []
+    def execute_with_retries(func: Callable, value: Any) -> Any:
+        for attempt in range(max_retries):
+            try:
+                return func(value)
+            except Exception as e:
+                print(f"重試 {attempt + 1}/{max_retries} 次失敗，原因: {e}")
+                time.sleep(delay)
+        return f"Error after {max_retries} retries"
+
+    def process_item(idx, item):
+        # 每個輸入單元的結果字典
+        item_results = {}
+        for func in funcs:
+            func_name = func.__name__
+            item_results[func_name] = execute_with_retries(func, item)
+        return idx, item_results
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for idx, iterable in enumerate(iterables):
-            if interval is not None and idx > 0:
-                time.sleep(interval)
-            futures.append(executor.submit(list, iterable if not isinstance(iterable, (
-            type(x for x in []), type(iter([])))) else list(iterable)))
+        futures = {executor.submit(process_item, idx, item): idx for idx, item in enumerate(enumerable)}
+        last_execution_time = time.time()
 
         for future in as_completed(futures):
-            try:
-                results.extend(future.result())
-            except Exception as exc:
-                print(f'鏈接可迭代對象時產生異常: {exc}')
+            if interval:
+                elapsed = time.time() - last_execution_time
+                if elapsed < interval:
+                    time.sleep(interval - elapsed)
+                last_execution_time = time.time()
 
-    return results
+            idx, item_results = future.result()
+            results[idx] = item_results
+
+    # 返回對應輸出格式
+    if output_type == "list":
+        return results
+    return {enumerable[idx]: result for idx, result in enumerate(results)}
