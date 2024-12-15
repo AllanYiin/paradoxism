@@ -139,7 +139,7 @@ class OpenAIClient(LLMClient):
         payload = {
             "model": self.model,
             "messages": message_with_context,
-            "temperature": self.temperature,
+            "temperature": parameters.get('temperature'),
             "top_p": parameters.get('top_p'),
             "n": 1,
             "max_tokens": parameters.get('max_tokens', NOT_GIVEN),
@@ -173,7 +173,7 @@ class OpenAIClient(LLMClient):
         payload = {
             "model": self.model,
             "messages": message_with_context,
-            "temperature": self.temperature,
+            "temperature": parameters.get('temperature'),
             "top_p": parameters.get('top_p'),
             "n": 1,
             "max_tokens": parameters.get('max_tokens', NOT_GIVEN),
@@ -206,7 +206,7 @@ class OpenAIClient(LLMClient):
         summary = await self.async_chat_completion_request(message_with_context, stream=False, use_tool=False)
         return summary
 
-    def generate(self, prompt: str,is_json=None,stream=False,system_prompt=None) -> str:
+    def generate(self, prompt: str,is_json=None,stream=False,system_prompt=None,temperature=0.2) -> str:
         """
         生成 LLM 的回應。
 
@@ -225,7 +225,7 @@ class OpenAIClient(LLMClient):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
         ]
-        response = self.chat_completion_request(messages_with_context, is_json=is_json,stream=stream)
+        response = self.chat_completion_request(messages_with_context, is_json=is_json,stream=stream,temperature=temperature)
         if not stream:
             return response.choices[0].message.content.strip()
         # else:
@@ -273,7 +273,7 @@ class AzureClient(LLMClient):
                        'frequency_penalty': 0}
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-    def chat_completion_request(self, message_with_context, parameters=None, stream=False,json_output=False):
+    def chat_completion_request(self, message_with_context, parameters=None, stream=False,json_output=False,temperature=0.2):
         if not parameters:
             parameters = self.params
         if 'max_tokens' in parameters and parameters['max_tokens'] != "NOT_GIVEN":
@@ -292,7 +292,7 @@ class AzureClient(LLMClient):
         )
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-    async def async_chat_completion_request(self, message_with_context, parameters=None, stream=False):
+    async def async_chat_completion_request(self, message_with_context, parameters=None, stream=False,temperature=0.2):
         if not parameters:
             parameters = self.params
         if 'max_tokens' in parameters and parameters['max_tokens'] != NOT_GIVEN:
@@ -321,7 +321,7 @@ class AzureClient(LLMClient):
         summary = await self.async_chat_completion_request(message_with_context, stream=False, use_tool=False)
         return summary
 
-    def generate(self, prompt: str, stream=False) -> str:
+    def generate(self, prompt: str, stream=False,temperature=0.2) -> str:
         """生成 LLM 的回應。"""
         messages_with_context = [
             {"role": "system", "content": self.system_prompt},
@@ -329,7 +329,7 @@ class AzureClient(LLMClient):
         ]
 
         if not stream:
-            response = self.chat_completion_request(messages_with_context, stream=stream)
+            response = self.chat_completion_request(messages_with_context, stream=stream,temperature=temperature)
             return response.choices[0].message.content.strip()
         # else:
         #     response = self.chat_completion_request(messages_with_context, stream=stream)

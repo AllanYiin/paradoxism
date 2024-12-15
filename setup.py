@@ -14,7 +14,7 @@ DIR = '.'
 PACKAGES = find_packages(exclude=["internal"])
 print(PACKAGES)
 
-with pathlib.Path('requirements.txt').open() as requirements_txt:
+with open('requirements.txt','r',encoding='utf-8-sig')as requirements_txt:
     install_requires = [
         str(requirement)
         for requirement
@@ -29,8 +29,8 @@ if not os.path.exists(os.path.join(os.path.expanduser('~'), ".paradoxism/downloa
     os.mkdir(os.path.join(os.path.expanduser('~'), ".paradoxism/download_pdfs"))
 
 setup(name=NAME,
-      version='0.0.2',
-      description='Prompt is all you need Liteon',
+      version='0.0.3',
+      description='Prompt like a Human, Perform like a Machine',
       # long_description=long_description,
       # long_description_content_type="text/markdown",
       long_description=open("README.md", encoding="utf-8").read(),
