@@ -1,32 +1,20 @@
 import json
 import os
-import openai
-from openai import OpenAI
 from paradoxism.context import *
-from paradoxism.base.tool import *
-from paradoxism.base.loop import *
+from paradoxism.tools import *
 from paradoxism.ops.base import prompt
 from paradoxism.utils import make_dir_if_need,split_path,yellow_color
-from paradoxism.utils.regex_utils import extract_json
-from paradoxism.utils.image_utils import preprocess_image_in_memory, encode_image
 from paradoxism.tools.image_tools import text2im
-from PIL import Image, PngImagePlugin
 from pptx import Presentation
-from pptx.util import Inches, Pt
+from pptx.util import Inches
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
 from PIL import Image
-from io import BytesIO
-import hashlib
-import time
-import base64
-import requests
-import uuid
 
 cxt=_context()
 
 
-@tool('azure')
+@tool('gpt-4o')
 def generate_ppt_outlines(topic:str,pages:int=20, main_style='專業的包浩斯風格',language='zh-TW'):
     ppt_prompt=f"""你是一個簡報大師，你擅長將複雜的題目以最吸睛的方式表達，請基於第一性原理思考{topic}作為簡報題目的根本目的，然後請上網查詢這主題，根據查詢後結果以及你對題目的理解，藉此設計出以{language}撰寫，總共{pages}頁的投影片大綱，包含封面頁，最後的Q&A頁，不需要目錄頁。大綱每頁需要:
     - 頁碼(page_num)

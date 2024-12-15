@@ -1,15 +1,11 @@
 import os
-import openai
-from openai import OpenAI
-from paradoxism.base.tool import *
+from paradoxism.tools import *
 from paradoxism.utils import make_dir_if_need,split_path
 from paradoxism.utils.image_utils import preprocess_image_in_memory, encode_image
 from PIL import Image, PngImagePlugin
 import hashlib
 import time
-import base64
 import requests
-import uuid
 from io import BytesIO
 
 __all__ = ['text2im','im2text']
@@ -75,7 +71,7 @@ def text2im(prompt, size="1792x1024", quality="standard", style='natural',save_f
 
     return image_file
 
-@tool('azure')
+@tool('gpt-4o')
 def im2text(prompt,img_path,**kwargs):
     """
 
