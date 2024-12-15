@@ -92,7 +92,8 @@ def better_search(query_intent, keywords_cnt=3, search_domain=None,it=None):
         return google_search_lists
 
 
-def search_rag(ur, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_question_variants=True,variants_cnt=3,it=None):
+@tool('gpt-4o')
+def search_rag(u, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_question_variants=True,variants_cnt=3,it=None):
     """
 
     Args:
@@ -151,6 +152,7 @@ def search_rag(ur, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_qu
         PrintException()
         return json.dumps(return_results, ensure_ascii=False)
 
+@tool('gpt-4o')
 def quick_search(ur, kw,dm=None,l=None,**kwargs):
     """
 
@@ -175,7 +177,7 @@ def quick_search(ur, kw,dm=None,l=None,**kwargs):
         return_results.extend(results)
     return json.dumps(return_results, ensure_ascii=False)
 
-
+@tool('gpt-4o')
 def open_url(url,**kwargs):
     print(yellow_color(f"open_url url:{url}"), flush=True)
     response = requests.head(url)
@@ -191,7 +193,20 @@ def open_url(url,**kwargs):
         new_results = web_utils.get_html_content(url)
         return new_results
 
+@tool('gpt-4o')
 def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):
+    """
+
+    Args:
+        ur: User request Intent
+        dm: site domain
+        l:
+        it:
+        **kwargs:
+
+    Returns:
+
+    """
     print(yellow_color(f"detail_search user request:{ur},  it:{it}, dm:{dm}"), flush=True)
     returnData = OrderedDict()
     if it in ['full_list','news']:
