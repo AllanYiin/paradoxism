@@ -13,7 +13,36 @@ from paradoxism.ops.convert import *
 from concurrent.futures import ThreadPoolExecutor
 
 __all__ = ["prompt","chain_of_thought"]
-def prompt(prompt_text: str, output_type:str='str',**kwargs):
+
+def reference(*args, **kwargs):
+    """
+    根據輸入的參數生成格式化的字串。
+    - 單個參數會直接格式化為： '\n\n\"\"\"\n\n
+    {input}\n\n\"\"\"\n\n'
+        - 多個參數會格式化為： '\n\n\"\"\"\n\n{input1}\n\n\"\"\"\n\n\"\"\"\n\n{input2}\n\n\"\"\"\n\n'
+        - 若提供標題（kwargs）會生成對應的格式： '\n\n\"\"\"\n\n  # {title}\n\n{input}\n\n\"\"\"\n\n'
+    """
+    if kwargs:
+        # 處理有標題的情況
+        result = []
+        for title, content in kwargs.items():
+            result.append(f'\n\n"""\n\n# {title}\n\n{content}\n\n"""\n\n')
+        return "".join(result)
+
+    elif len(args) == 1:
+        # 處理單個輸入的情況
+        return f'\n\n"""\n\n{args[0]}\n\n"""\n\n'
+
+    elif len(args) > 1:
+        # 處理多個輸入的情況
+        result = []
+        for content in args:
+            result.append(f'\n\n"""\n\n{content}\n\n"""\n\n')
+        return "".join(result)
+
+    else:
+        raise ValueError("至少需要一個輸入參數或標題鍵值對。")
+def prompt(prompt_text: str, input_kwargs=None,output_type:str='str',**kwargs):
     """
     執行給定的 prompt 並返回解析後的 LLM 回應。
     支持多種格式：json, python, xml, html, markdown, yaml。
@@ -35,6 +64,12 @@ def prompt(prompt_text: str, output_type:str='str',**kwargs):
         raise RuntimeError("prompt 函數必須在 @agent 裝飾的函數內部調用。")
 
     input_args = getattr(_thread_local, 'input_args', '')
+    if not input_kwargs:
+        input_kwargs={}
+        if input_kwargs:
+            for k,v in input_args.items():
+                input_kwargs[k]=v['arg_value']
+
     returns = getattr(_thread_local, 'returns', '')
     variables_need_to_replace = re.findall(r'{(.*?)}', prompt_text)
 
@@ -42,7 +77,8 @@ def prompt(prompt_text: str, output_type:str='str',**kwargs):
 
     # 生成完整的提示
     static_instruction = getattr(_thread_local, 'static_instruction', '')
-    full_prompt = f"{static_instruction}\n{prompt_text}"
+    input_info=reference(**input_kwargs) if len(input_kwargs)>0 else ''
+    full_prompt = f"{static_instruction}\n{prompt_text}\n{input_info}"
     is_json=False
     if output_type in ['dict','json']:
         full_prompt = full_prompt+"\n\n請以json的格式輸出"
@@ -83,7 +119,7 @@ def chain_of_thought(prompt_text: str, output_type:str='str',**kwargs):
     """
     system_prompt="""在使用者輸入後，即使**看起來再簡單的問題**，都必須針對使用者所輸入內容中的關鍵概念進行**概念對齊**，若涉及**歧義**請同時將各種可能性都陳述給使用者，並請以人類的角度思考歧義的合理性，若涉及專有名詞請上網查詢相關資訊並整理成詳實的概念對齊筆記，概念對齊筆記開頭請先以markdown 3級標題列印出"Concept Alignment"，然後概念對齊筆記每一列都要用含markdown引用符號的無序清單"> - "開頭。
 在**產生答案之前**或是**反思過程之後**，則需要進行Chain-of-thought解題思路規劃，也就是透過一步一步地思考各種可能性、考慮反思(如果前面有的話)的觀點、排除不可能選項、推導最後找到答案，Chain-of-thought開頭請先以markdown 3級標題列印出"Chain-of-thought"，然後Chain-of-thought每一列都要用markdown引用符號"> "開頭。思路清晰後才可以向下產出答案。
-每次產生答案後，必須執行反思過程，在反思過程中你將扮演冷酷客觀的第三者，檢核答案有無錯誤、誤解或是推理錯誤的狀況，同時反思先前的答案，思考有無其他的可能或改進之處，反思過程開頭請先以markdown 3級標題列印出"Rethink"，然後反思過程每一列都要用markdown引用符號">> "開頭。反思過程的結束後會啟動下一輪的[Chain-of-thought]->[產出答案]->[反思過程]的循環，一直到產出答案沒有問題為止，在這之前請勿任意中斷
+每次產生答案後，必須執行反思過程，在反思過程中你將扮演冷酷客觀的第三者，檢核答案有無錯誤、誤解或是推理錯誤的狀況，同時反思先前的答案，思考有無其他的可能或改進之處，反思過程開頭請先以markdown 3級標題列印出"Rethink"，然後反思過程每一列都要用markdown引用符號">> "開頭。反思過程的結束後請根據反思結果的建議透過Chain-of-thought來調整與修改先前的答案，若是覺得有必要還可以多一次反思與Chain-of-thought的循環
 所有**涉及數據的引用**絕對禁止憑記憶回答或是隨意杜撰，都必須先上網查詢、確認並附上引用來源資料
 #zh-TW 請以繁體中文回答"""
 
@@ -110,6 +146,7 @@ def chain_of_thought(prompt_text: str, output_type:str='str',**kwargs):
 
     # 使用 ThreadPoolExecutor 非同步執行 llm_client.generate
     with ThreadPoolExecutor() as executor:
+        kwargs={'temperature':1.0}
         future = executor.submit(llm_client.generate, full_prompt,is_json,False,system_prompt, **kwargs)
         response = future.result()  # 等待回應並取出結果
 
