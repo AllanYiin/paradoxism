@@ -1,12 +1,13 @@
 import regex
 import json
 from functools import lru_cache
-
+import inspect
+from typing import Callable
 __all__ = [
     "choice_pattern", "delta_pattern","json_uncompile_pattern", "json_pattern", 'numbered_list_member_pattern', 'unordered_listitem_pattern',
     "replace_special_chars", 'extract_score', 'extract_code', 'triplequote_pattern', 'is_numbered_list_member',
     'is_unordered_list_member', 'extract_numbered_list_member', 'find_all_placeholders', 'md_table_pattern',
-    'count_words','extract_json']
+    'count_words','extract_json','extract_docstring']
 
 choice_pattern = regex.compile(r'"choices":\s*\[(\{.*?\})\]')
 
@@ -131,6 +132,10 @@ def extract_json(text):
             print(f"無法解析的 JSON 區塊: {match}")
 
     return json_objects
+
+def extract_docstring(func: Callable) -> str:
+    match = regex.search(r'def\s+\w+\s*\(.*?\):\s*f?"""\s*([\s\S]*?)\s*"""', inspect.getsource(func))
+    return match.group(1) if match else ''
 
 
 def is_numbered_list_member(string):
