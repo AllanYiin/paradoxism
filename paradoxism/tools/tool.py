@@ -5,13 +5,15 @@ import threading
 from paradoxism.base.agent import _thread_local
 from paradoxism.llm import *
 from paradoxism.utils.docstring_utils import *
-
+from paradoxism.utils.input_dict_utils import *
+from paradoxism.ops.base import reference
 class BaseTool:
     def __init__(self, model="gpt-4o", system_prompt="你是一個擅長工具調用的超級幫手",temperature=0.1, **kwargs):
         self.model = model
         self.system_prompt = system_prompt
         self.llm_client =get_llm(model, system_prompt, temperature, **kwargs)
         self.base_func=None
+
 
     def generate_tool_args(self, tool_name, docstring, input_kwargs):
         """
@@ -23,13 +25,23 @@ class BaseTool:
         Returns:
             生成的工具引數 dict
         """
+        input_args=_thread_local.input_args
         prompt = f"""
         你將調用一個工具，工具名稱是 "{tool_name}"，這個工具的功能以及所需引數如下：
+        # 工具說明
         {docstring}  
-        {input_kwargs}
-        請參考目前執行階段所收集之上下文信息：
-        {input_kwargs}
-        請基於工具的描述、引數的描述和上下文信息，以json格式生成最終的工具引數。
+        
+        #工具引數規格
+        {input_args}
+        請參考目前執行階段所收集之上下文信息(意即當下傳入之信息)，
+        請基於工具說明、工具引數規格和上下文信息以json格式生成最終的工具引數，引數。：
+        如果所需要引數在上下文信息中**有提供**且**符合引數規格**直接採用
+        如果所需要引數在上下文信息中有提供但不符合引數規格則請你協助轉換
+        如果所需要引數不在上下文信息中則請你協助研判後提供
+        
+        # 上下文信息
+        {reference(input_kwargs)}
+        
         """
 
         response = self.llm_client.client.chat.completions.create(
@@ -38,7 +50,8 @@ class BaseTool:
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0.0
 
         )
         tool_args =response.choices[0].message.content
@@ -77,9 +90,14 @@ def tool(model: str, system_prompt: str="你是一個擅長工具調用的超級
 
     def decorator(func):
         # 創建 BaseTool 實例
+        lock = threading.Lock()
         base_tool = BaseTool(model=model, system_prompt=system_prompt,temperature=temperature, **kwargs)
         base_tool.base_func = func
-        func.client = base_tool.llm_client
+        func.llm_client = base_tool.llm_client
+        with lock:
+            _thread_local.llm_client = base_tool.llm_client
+        if func.__doc__ is None:
+            func.__doc__ = extract_docstring(func)
 
 
 
@@ -91,9 +109,14 @@ def tool(model: str, system_prompt: str="你是一個擅長工具調用的超級
             使用 BaseTool 來生成引數並調用函數，input_kwargs 為 dict 形式。
             """
             # 通過 BaseTool 來生成最終的引數並調用工具函數
-            parsed_result = parse_docstring(func.__doc__)
-            _thread_local.static_instruction = parsed_result['static_instruction']
-            _thread_local.llm_client = base_tool.llm_client
+
+            parsed_results =get_input_dict(func)
+
+            with lock:
+                _thread_local.llm_client = base_tool.llm_client
+                _thread_local.static_instruction = parsed_results['static_instruction']
+                _thread_local.input_args = parsed_results['input_args']
+                _thread_local.returns = parsed_results['return']
             return base_tool(input_kwargs)
 
         return wrapper
