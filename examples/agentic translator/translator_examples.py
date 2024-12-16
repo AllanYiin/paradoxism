@@ -16,7 +16,7 @@ print(en_translator('紅豆生南國，春來發幾枝。願君多採擷，此�
 
 
 @agent(model='gpt-4o',system_prompt='你是一個擅長多國語言的的翻譯高手，你懂得根據輸入內容的原意與語境，在最大程度保留原本文字的風格與言外之意的情況下，翻譯成兼具信達雅的指定語種版本')
-def translator(input_string, to_language):
+def translator(input_string:str, to_language:str)->str:
     translated_result= prompt(f'請將以下內容翻譯成{to_language}，直接輸出，無須解釋:\n\n"""{input_string}"""')
     return translated_result
 

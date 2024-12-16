@@ -7,5 +7,6 @@ gradio
 regex
 ollama
 anthropic
-pdoc
 pyyaml
+selenium
+beautifulsoup4

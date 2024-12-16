@@ -35,7 +35,7 @@ def text2im(prompt, size="1792x1024", quality="standard", style='natural',save_f
     Args:
         prompt: 最終用來生圖的文字prompt，其生成步驟:請評估使用者的視覺需求以轉換為初步prompt底稿，再加入prompt底稿要使用的風格元素，並且prompt底稿中再加入至少3種以上專業風格詞，以及一種以上的構圖技巧，以英文撰寫
         size: 共計有"1792x1024", "1024x1024", "1024x1792"三種選項  若是要做簡報或是提案書建議使用"1792x1024"，若是做logo請使用"1024x1024"，預設為"1792x1024"
-        quality:預設皆為"standard"
+        quality:可用選項為'standard'以及hd,預設為"standard"
         style:可用選項為'natural'以及vivid,預設為'natural'
         save_folder:圖片存放路徑
         save_filename:圖片檔名

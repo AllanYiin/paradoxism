@@ -58,7 +58,6 @@ def entity_detection(sentence: str) -> dict:
     system_prompt='你是一個擅長中文意圖識別的超級幫手'
 )
 def intent_detection(sentence: str) -> dict:
-
     results = prompt('當你偵測到句子中有要求你代為執行某個任務(祈使句)、或是表達自己想要的事物或是行動、或是想查詢某資訊的意圖(intents)時，根據以意圖最普遍的**英文**講法之「名詞+動詞-ing」或動名詞的駝峰式命名形式來組成意圖類別(例如使用者說「請幫我訂今天下午5點去高雄的火車票」其意圖類別為TicketOrdering)作為key，及句子中的那些「觸及到意圖類別的句子文字內容」作為value成對的列舉出來，一個句子可以觸及不只一種意圖。請以dict形式輸出'+'\n\n"""\n\n'+sentence+'\n\n"""',output_type=dict)
     return results
 

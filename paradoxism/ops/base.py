@@ -105,7 +105,7 @@ def prompt(prompt_text: str, input_kwargs=None,output_type:str='str',**kwargs):
 
 
 
-def chain_of_thought(prompt_text: str, output_type:str='str',**kwargs):
+def chain_of_thought(prompt_text: str, input_kwargs=None,output_type:str='str',**kwargs):
     """
     執行給定的 prompt 並返回chain_of_thought解析後的 LLM 回應。
     支持多種格式：json, python, xml, html, markdown, yaml。
@@ -131,6 +131,12 @@ def chain_of_thought(prompt_text: str, output_type:str='str',**kwargs):
         raise RuntimeError("prompt 函數必須在 @agent 裝飾的函數內部調用。")
 
     input_args = getattr(_thread_local, 'input_args', '')
+    if not input_kwargs:
+        input_kwargs = {}
+        if input_kwargs:
+            for k, v in input_args.items():
+                input_kwargs[k] = v['arg_value']
+
     returns = getattr(_thread_local, 'returns', '')
     variables_need_to_replace = re.findall(r'{(.*?)}', prompt_text)
 
@@ -138,7 +144,8 @@ def chain_of_thought(prompt_text: str, output_type:str='str',**kwargs):
 
     # 生成完整的提示
     static_instruction = getattr(_thread_local, 'static_instruction', '')
-    full_prompt = f"{static_instruction}\n{prompt_text}"
+    input_info = reference(**input_kwargs) if len(input_kwargs) > 0 else ''
+    full_prompt = f"{static_instruction}\n{prompt_text}\n{input_info}"
     is_json=False
     if output_type in ['dict','json']:
         full_prompt = full_prompt+"\n\n請以json的格式輸出"

@@ -18,6 +18,6 @@ if sys.getdefaultencoding() != defaultencoding:
 PACKAGE_ROOT = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 
-__version__ = '0.0.1'
+__version__ = '0.0.3'
 stderr.write('PARADOXISM {0}\n'.format(__version__))
 

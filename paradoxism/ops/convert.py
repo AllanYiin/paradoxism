@@ -69,7 +69,18 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
 
             if json_match:
                 clean_response = json_match.group(0)
-                return eval(clean_response)
+                clean_obj= eval(clean_response)
+                if isinstance(clean_obj, dict):
+                    if target_type=='dict':
+                        return clean_obj
+                    elif  target_type=='list':
+                        return list(clean_obj.values())
+                if isinstance(clean_obj, list):
+                    if target_type=='list':
+                        return clean_obj
+                    elif  target_type=='dict':
+                        return {i:k for i,k in enumerate(clean_obj)}
+
             else:
                 print("Error: Not a valid JSON format",red_color(response),flush=True)
                 return "Error: Not a valid JSON format: "
