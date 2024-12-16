@@ -14,7 +14,8 @@ from paradoxism.utils import *
 from paradoxism.utils.docstring_utils import *
 from paradoxism.ops.convert import *
 from paradoxism.llm import *
-
+from paradoxism.utils.input_dict_utils import *
+from paradoxism.utils.regex_utils import extract_docstring
 # 建立全域的 PerformanceCollector 實例，保證所有地方都能使用這個實例
 collector = PerformanceCollector()
 
@@ -57,7 +58,7 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
 
         # 初始化函數的 __doc__
         if func.__doc__ is None:
-            func.__doc__ = _extract_docstring(func)
+            func.__doc__ = extract_docstring(func)
 
         # 使用 threading.Lock 保證對 thread-local 的操作是線程安全的
         lock = threading.Lock()
@@ -69,17 +70,7 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
             instance_id = str(uuid.uuid4())
             try:
                 # 產生 inputs_dict
-                inputs_dict = _generate_inputs_dict(func, *args, **kwargs_inner)
-                with lock:
-                    _thread_local.input_args = inputs_dict
-
-                # 格式化並解析 docstring
-                docstring = _format_docstring(func.__doc__, inputs_dict)
-                parsed_results = parse_docstring(docstring)
-                type_hints_results = get_type_hints(func)
-
-                _update_parsed_results(parsed_results, inputs_dict, type_hints_results)
-
+                parsed_results =get_input_dict(func)
                 # 生成 agent key
                 func_code = inspect.getsource(func)
                 agent_key = generate_agent_key(system_prompt, parsed_results['static_instruction'], func_code)
@@ -88,6 +79,7 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
                 with lock:
                     _thread_local.llm_client = func.llm_client
                     _thread_local.static_instruction = parsed_results['static_instruction']
+                    _thread_local.input_args = parsed_results['input_args']
                     _thread_local.returns = parsed_results['return']
             except:
                 PrintException()
@@ -116,7 +108,7 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
                     result = force_cast(result, return_type)
 
             execution_time = time.time() - start_time
-            logger.info(f"agent {func.__name__} executed in {execution_time:.4f} seconds with agent_key: {agent_key} and input_args: {inputs_dict}")
+            logger.info(f"agent {func.__name__} executed in {execution_time:.4f} seconds with agent_key: {agent_key} and input_args: {parsed_results['input_args']}")
 
             # 使用全域的 collector 來記錄效能數據
             collector.record(instance_id, agent_key, execution_time)
@@ -126,57 +118,6 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
 
     return decorator
 
-# 新增輔助函數以分離不同邏輯片段，提高代碼可讀性
-def _extract_docstring(func: Callable) -> str:
-    match = re.search(r'def\s+\w+\s*\(.*?\):\s*f?"""\s*([\s\S]*?)\s*"""', inspect.getsource(func))
-    return match.group(1) if match else ''
 
-def _generate_inputs_dict(func: Callable, *args, **kwargs) -> OrderedDict:
-    inputs_dict = OrderedDict()
-    signature = inspect.signature(func)
-    for i, (param_name, param) in enumerate(signature.parameters.items()):
-        if len(args) > i:
-            inputs_dict[param_name] = {
-                'arg_name': param_name,
-                'arg_value': args[i],
-                'arg_type': param.annotation.__name__ if param.annotation else None
-            }
-        elif param_name in kwargs:
-            inputs_dict[param_name] = {
-                'arg_name': param_name,
-                'arg_value': kwargs[param_name],
-                'arg_type': param.annotation.__name__ if param.annotation else None
-            }
-        elif param.default is not inspect.Parameter.empty:
-            inputs_dict[param_name] = {
-                'arg_name': param_name,
-                'arg_value': str(param.default),
-                'arg_type': param.annotation.__name__ if param.annotation else None
-            }
-        else:
-            inputs_dict[param_name] = {
-                'arg_name': param_name,
-                'arg_value': 'none',
-                'arg_type': param.annotation.__name__ if param.annotation else None
-            }
-    return inputs_dict
 
-def _format_docstring(docstring: str, inputs_dict: OrderedDict) -> str:
-    variables_need_to_replace = list(set(re.findall(r'{(.*?)}', docstring)))
-    if variables_need_to_replace and all(var in inputs_dict for var in variables_need_to_replace):
-        return docstring.format(**{k: inputs_dict[k]['arg_value'] for k in variables_need_to_replace})
-    return docstring
 
-def _update_parsed_results(parsed_results: dict, inputs_dict: OrderedDict, type_hints_results: dict):
-    inputs_dict_keys = list(inputs_dict.keys())
-    for idx, item in enumerate(parsed_results['input_args']):
-        if item['arg_name'] in inputs_dict_keys:
-            ref = inputs_dict[item['arg_name']]
-            if ref['arg_type']:
-                parsed_results['input_args'][idx]['arg_type'] = ref['arg_type']
-            inputs_dict_keys.remove(item['arg_name'])
-        if not item['arg_type'] and item['arg_name'] in type_hints_results:
-            parsed_results['input_args'][idx]['arg_type'] = type_hints_results[item['arg_name']].__name__
-    for k in inputs_dict_keys:
-        if k in type_hints_results:
-            parsed_results['input_args'].append({'arg_name': k, 'arg_type': type_hints_results[k].__name__})
