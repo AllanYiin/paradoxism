@@ -34,7 +34,7 @@ def generate_story(story_keyword: str) -> dict:
 
     """
     story = chain_of_thought(
-        f'這是一個關於{story_keyword}的故事，會以擬人化動物作為主要角色(再兼顧該種動物在繪本視覺呈現上的視覺效果是否可愛的前提下請腦洞大開的多元的挑選主角的動物種類以及劇情背景發生地(未必是森林，也許是海洋、濕地、火山地...)，也要考慮主要角色間應該是不存在食物鏈會有吃了彼此的可能)，不需要走主流路線，可以討論童書比較少提到的議題，主角應該要有明確的成長弧線，讓自己變得更好，但故事的劇情必須合理，請撰寫出對應故事綱要',
+        f'這是一個關於{story_keyword}的故事，會以擬人化動物作為主要角色(在兼顧該種動物在繪本視覺呈現上的視覺效果是否可愛的前提下請腦洞大開的多元的挑選主角的動物種類(可以是這世界上真實動物，也可以是古籍經典中的神獸)以及劇情背景發生地(未必是森林，也許是海洋、濕地、火山地...)，也要考慮主要角色間應該是不存在食物鏈會有吃了彼此的可能)，不需要走主流路線，可以討論童書比較少提到的議題，主角應該要有明確的成長弧線，讓自己變得更好，但故事的劇情必須合理，請撰寫出對應故事綱要',
         temperature=0.9)
     pages = prompt(
         f'將故事大綱細分至預計15個跨頁的篇幅,pages是一個dict，它的key就是第幾頁，它的value也是dict，其中包括了"page_num","text"，"image_prompt"分別用來還存放頁碼、每頁童書的文字(以繁體中文撰寫)以及預計生成出的圖像prompt(以英文撰寫，但是出現角色仍以固定中文名作代稱)，請將分頁故事規劃儲存至pages，直接輸出無須解釋',
@@ -122,7 +122,7 @@ def make_video_from_book(book_path, duration_per_frame=6, fps=15):
     # 生成影片
     create_video_from_json(json_file, image_folder, output_video_path)
 
-
+#製作繪本影片
 def make_video_from_book_with_audio(book_path, fps=15):
     def add_text_to_image(image_path, text, font_path, font_size):
         """在圖片下方添加文字，並返回帶文字的 numpy 圖像陣列"""
@@ -147,7 +147,7 @@ def make_video_from_book_with_audio(book_path, fps=15):
 
     def generate_audio_from_text(text, output_path):
         """使用 OpenAI API 將文本轉換為音頻"""
-        client = openai.OpenAI()
+        client = openai.OpenAI(timeout=60)
         response = client.audio.speech.create(
             model="tts-1",
             voice="onyx",
@@ -213,7 +213,7 @@ def make_video_from_book_with_audio(book_path, fps=15):
     print(f"影片已成功生成：{output_video_path}")
 
 
-book_folder = 'book18'
+book_folder = 'book19'
 
 
 def make_picture_book(book_folder):
@@ -229,34 +229,34 @@ def make_picture_book(book_folder):
     topic_bases = ['我就是獨特的我', '我也喜歡這樣的我', '討好性人格', '堅毅的友情', '比金錢更重要的事', '換位思考']
     this_topic = random.choice(topic_bases)
     print('this_topic', this_topic, 'style_base', style_base)
-
-    pages, role_style = generate_story(this_topic)
-    if len(pages) == 1:
-        pages = list(pages.values())[0]
-    open(os.path.join(book_path, "pages.json"), 'w', encoding='utf-8').write(
-        json.dumps(pages, ensure_ascii=False, indent=4))
-
-    results = []
-
-    def make_page(page):
-        image_prompt = page['image_prompt']
-        text_content = page['text']
-        page_num = page['page_num']
-        img_path = image_generation(image_prompt, style_base, role_style, book_path, page_num=page_num)
-        new_path = os.path.join(book_path, f"{page_num}.png")
-        if new_path != img_path and os.path.exists(new_path):
-            os.remove(new_path)
-        if new_path != img_path:
-            os.rename(img_path, new_path)
-        return {'image': new_path, 'text': text_content}
-
-    # 透過PForEach並行處理每一頁
-    # Dalle速率上限每分鐘15頁
-    results = PForEach(make_page, pages.values(), rate_limit_per_minute=15)
-
-    open(os.path.join(book_path, "results.json"), 'w', encoding='utf-8').write(
-        json.dumps(results, ensure_ascii=False, indent=4))
-    print(results)
+    #
+    # pages, role_style = generate_story(this_topic)
+    # if len(pages) == 1:
+    #     pages = list(pages.values())[0]
+    # open(os.path.join(book_path, "pages.json"), 'w', encoding='utf-8').write(
+    #     json.dumps(pages, ensure_ascii=False, indent=4))
+    #
+    # results = []
+    #
+    # def make_page(page):
+    #     image_prompt = page['image_prompt']
+    #     text_content = page['text']
+    #     page_num = page['page_num']
+    #     img_path = image_generation(image_prompt, style_base, role_style, book_path, page_num=page_num)
+    #     new_path = os.path.join(book_path, f"{page_num}.png")
+    #     if new_path != img_path and os.path.exists(new_path):
+    #         os.remove(new_path)
+    #     if new_path != img_path:
+    #         os.rename(img_path, new_path)
+    #     return {'image': new_path, 'text': text_content}
+    #
+    # # 透過PForEach並行處理每一頁
+    # # Dalle速率上限每分鐘15頁
+    # results = PForEach(make_page, pages.values(), rate_limit_per_minute=15)
+    #
+    # open(os.path.join(book_path, "results.json"), 'w', encoding='utf-8').write(
+    #     json.dumps(results, ensure_ascii=False, indent=4))
+    # print(results)
     # 製作童書動畫
     make_video_from_book_with_audio(book_path)
 
