@@ -14,7 +14,7 @@ __all__ = ["force_cast","target_types","to_json","is_json_serializable"]
 
 target_types=["str", "int", "float", "date", "dict", "list", "json", "xml", "markdown", "html", "code"]
 
-def force_cast(response: str, target_type: str,schema=None) -> Any:
+def force_cast(response: str, target_type: str, schema=None) -> Any:
     """
     Force cast the LLM response to the specified type.
 
@@ -27,17 +27,18 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
         Any: The result after type casting.
     """
 
-    # 直接根據不同的目標類型來進行處理
     try:
-        # 對於數字類型 (int, float) 的特殊處理，直接抓取
+        # 針對沒有指定 target_type 的情況
         if not target_type:
             return response
-        if not isinstance(target_type,str):
-            target_type=target_type.__name__
-        if target_type=='string':
-            target_type='str'
-        if not isinstance(response,str):
-            response=str(response)
+        if not isinstance(target_type, str):
+            target_type = target_type.__name__
+        if target_type == 'string':
+            target_type = 'str'
+        if not isinstance(response, str):
+            response = str(response)
+
+        # ---------- int ----------
         if target_type == "int":
             response = response.replace(",", "")  # 去除逗號
             number_match = regex.search(r"-?\d+", response)
@@ -45,6 +46,7 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
                 return int(number_match.group(0))
             return "Error: Could not convert to int"
 
+        # ---------- float ----------
         elif target_type == "float":
             response = response.replace(",", "")  # 去除逗號
             number_match = regex.search(r"-?\d+\.?\d*([eE][-+]?\d+)?", response)
@@ -52,6 +54,7 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
                 return float(number_match.group(0))
             return "Error: Could not convert to float"
 
+        # ---------- date ----------
         elif target_type == "date":
             date_match = regex.search(r"\d{4}-\d{2}-\d{2}", response)
             if date_match:
@@ -61,34 +64,53 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
                     return "Error: Invalid date format"
             return "Error: Could not find a valid date"
 
-            # JSON 和字典處理
+        # ---------- json / dict / list ----------
         elif target_type in ["json", "dict", "list"]:
-            # 使用正則表達式提取有效的 JSON 部分
             response_cleaned = regex.sub(r"OrderedDict\(\[.*?\]\)", "{}", response)
-            json_match = regex.search(json_uncompile_pattern, response_cleaned,  regex.DOTALL | regex.VERBOSE)
+            json_match = regex.search(json_uncompile_pattern, response_cleaned, regex.DOTALL | regex.VERBOSE)
 
+            # 如果能抓到符合 JSON 格式
             if json_match:
                 clean_response = json_match.group(0)
-                clean_obj= eval(clean_response)
+                clean_obj = eval(clean_response)
+
+                # 這裡先判斷是否為 dict 或 list
                 if isinstance(clean_obj, dict):
-                    if target_type=='dict':
+                    if target_type == 'dict':
                         return clean_obj
-                    elif  target_type=='list':
+                    elif target_type == 'list':
+                        # 如果是 dict 且要轉成 list，就將 values() 做 list 化
                         return list(clean_obj.values())
-                if isinstance(clean_obj, list):
-                    if target_type=='list':
+                elif isinstance(clean_obj, list):
+                    if target_type == 'list':
                         return clean_obj
-                    elif  target_type=='dict':
-                        return {i:k for i,k in enumerate(clean_obj)}
+                    elif target_type == 'dict':
+                        # 如果是 list 且要轉成 dict，就用 enumerate 轉成 {idx:val, ...}
+                        return {i: k for i, k in enumerate(clean_obj)}
 
-            else:
-                print("Error: Not a valid JSON format",red_color(response),flush=True)
-                return "Error: Not a valid JSON format: "
+            # 如果 json_match 抓不到有效 JSON，且目標是 'list'，就嘗試從文字中抓取列表
+            if target_type == 'list':
+                # 嘗試抓取有序或無序列表項目
+                # (1) 有序列表 e.g. "1. 內容"、"2. 內容"
+                # (2) 無序列表 e.g. "* 內容"、"- 內容"、"+ 內容"
+                # 使用 MULTILINE 模式以支援多行偵測
+                bullet_pattern = r"(?m)^\s*(?:\d+\.\s+|[\*\-\+]\s+)(.*)"
+                found_items = regex.findall(bullet_pattern, response)
 
-            # JSON Schema 驗證
+                if found_items:
+                    # 將每個項目去除前後空白後回傳
+                    return [item.strip() for item in found_items]
+                else:
+                    # 代表既不是 JSON，也沒找到符合模式的列表
+                    print("Error: Not a valid JSON format or list pattern in text")
+                    return "Error: Could not parse as a bullet or ordered list"
+
+            # 如果不是要轉換成 list/dict，就直接報錯 (因為前面已經失敗)
+            print("Error: Not a valid JSON format", red_color(response), flush=True)
+            return "Error: Not a valid JSON format: "
+
+        # ---------- json_schema ----------
         elif target_type == "json_schema":
-            # 首先提取 JSON
-
             json_match = regex.search(r"\{.*?\}|\[.*?\]|OrderedDict\(\[.*?\]\)", response, regex.DOTALL)
             if json_match:
                 clean_response = json_match.group(0)
@@ -99,54 +121,56 @@ def force_cast(response: str, target_type: str,schema=None) -> Any:
                     items = [item.replace("(", "").replace(")", "").replace(", ", ": ", 1) for item in items]
                     clean_response = "{" + ", ".join(items) + "}"
                     clean_response = clean_response.replace(": ", ": '").replace(", ", "', ").replace("}", "'}")
-                parsed_json =eval(clean_response)
-                # 驗證 JSON 是否符合指定的 schema
+                parsed_json = eval(clean_response)
+
                 if schema is not None:
                     try:
                         validate(instance=parsed_json, schema=schema)
-                        return parsed_json  # 驗證通過，返回 JSON
+                        return parsed_json
                     except ValidationError as e:
-                        print("Error: Not a valid JSON format", red_color(response),flush=True)
+                        print("Error: Not a valid JSON format", red_color(response), flush=True)
                         return f"JSON Schema validation error: {str(e)}"
                 return "Error: No schema provided for JSON schema validation"
             else:
-                print("Error: Not a valid JSON format",red_color(response),flush=True)
+                print("Error: Not a valid JSON format", red_color(response), flush=True)
                 return "Error: Not a valid JSON format"
 
-            # 處理 Markdown 中的程式碼區塊提取
+        # ---------- code ----------
         elif target_type == "code":
-            # 優先匹配區塊程式碼 ```code block```
             code_block_match = regex.search(r"```(.*?)```", response, regex.DOTALL)
             if code_block_match:
                 return code_block_match.group(1).strip()
 
-            # 匹配行內程式碼 `inline code`
             inline_code_match = regex.search(r"`([^`]+)`", response)
             if inline_code_match:
                 return inline_code_match.group(1).strip()
-
             return "Error: No code block found"
 
-        # XML 轉換
+        # ---------- xml ----------
         elif target_type == "xml":
             try:
                 return ET.fromstring(response)
             except ET.ParseError as e:
                 return f"Error during XML conversion: {str(e)}"
 
-        # 其他類型的處理
+        # ---------- str ----------
         elif target_type == "str":
             return response.strip()
 
+        # ---------- markdown ----------
         elif target_type == "markdown":
             return markdown.markdown(response.strip())
 
+        # ---------- html ----------
         elif target_type == "html":
             return html.unescape(response.strip())
 
         else:
             raise ValueError(f"Unsupported target type: {target_type}")
 
+    except NameError:
+        PrintException()
+        return response_cleaned
     except Exception as e:
         return f"Error during conversion: {str(e)}"
 
