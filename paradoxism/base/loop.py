@@ -6,7 +6,7 @@ from concurrent.futures import as_completed
 from itertools import accumulate, combinations
 from typing import Callable, Iterable, Iterator, List, Dict, Any,Union
 from paradoxism.context import get_optimal_workers
-
+from collections.abc import ItemsView
 __all__ = ["PCombinations", "PForEach", "PMap", "PFilter"]
 
 
@@ -40,9 +40,10 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
              rate_limit_per_minute=None):
     """
     平行地對每個枚舉值應用函數，並返回結果列表或字典，支援重試機制和速率限制。
+    可處理一般可枚舉對象以及 dict.items()。
 
     :param func: 需要應用的函數
-    :param enumerable: 可枚舉的列表或集合
+    :param enumerable: 可枚舉的列表、集合或字典的 items
     :param max_workers: 最大工作者數量，默認為最佳工作者數量
     :param max_retries: 每個元素的最大重試次數
     :param delay: 每次重試間的延遲時間
@@ -65,15 +66,24 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
 
         >>> PForEach(square, [1, 2, 3, 4], output_type="dict")
         {1: 1, 2: 4, 3: 9, 4: 16}
+
+        >>> def concat_kv(k, v):
+        ...     return f"{k}-{v}"
+        >>> PForEach(concat_kv, {"a": 1, "b": 2}.items(), output_type="dict")
+        {'a': 'a-1', 'b': 'b-2'}
     """
-    if isinstance(enumerable, (type(x for x in []), type(iter([])))):
+    if isinstance(enumerable, (type(x for x in []), type(iter([])))):  # 處理生成器或迭代器
         enumerable = list(enumerable)
+
+    # 判斷是否是 dict.items()，需要解包鍵值對
+    is_dict_items = isinstance(enumerable,ItemsView)
+
     if max_workers is None:
         max_workers = get_optimal_workers()
 
     results = [None] * len(enumerable)
 
-    # 若有設定rate_limit_per_minute，計算需要的延遲間隔(秒)
+    # 若有設定 rate_limit_per_minute，計算需要的延遲間隔(秒)
     interval = None
     if rate_limit_per_minute and rate_limit_per_minute > 0:
         interval = 60.0 / rate_limit_per_minute
@@ -85,7 +95,12 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
             if interval is not None and idx > 0:
                 time.sleep(interval)
 
-            future = executor.submit(retry_with_fallback, func, value, idx, max_retries, delay)
+            # 解包鍵值對或直接傳值
+            if is_dict_items:
+                future = executor.submit(retry_with_fallback, lambda kv: func(*kv), value, idx, max_retries, delay)
+            else:
+                future = executor.submit(retry_with_fallback, func, value, idx, max_retries, delay)
+
             futures[future] = idx
 
         for future in as_completed(futures):
@@ -96,9 +111,10 @@ def PForEach(func, enumerable, max_workers=None, max_retries=3, delay=0.5, outpu
                 results[index] = f"Error after retries: {exc}"
 
     if output_type == "dict":
+        if is_dict_items:
+            return dict(zip((k for k, _ in enumerable), results))  # 只保留鍵並組裝結果
         return dict(zip(enumerable, results))
     return results
-
 
 def PAccumulate(func, enumerable, max_workers=None, max_retries=3, delay=0.5,output_type="list", rate_limit_per_minute=None):
     """
