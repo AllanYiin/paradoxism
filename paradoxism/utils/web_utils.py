@@ -26,11 +26,11 @@ from paradoxism.utils import *
 from paradoxism.utils.markdown_utils import HTML2Text, htmltable2markdown
 from paradoxism.utils.text_utils import seg_as_sentence, optimal_grouping
 from paradoxism.utils.regex_utils import count_words
-
+from  paradoxism import context
 __all__ = ["search_google", "search_bing", "user_agents", "md4html", "strip_tags", "retrieve_clear_html","get_html_content", "search_web"]
 
 ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
-
+cxt=context._context()
 import pysnooper
 def prepare_chrome_options():
     chrome_options = Options()
@@ -54,6 +54,7 @@ def prepare_chrome_options():
     chrome_options.add_argument("--proxy-server='direct://'")
     chrome_options.add_argument("--proxy-bypass-list=*")
     chrome_options.add_argument('--ignore-certificate-errors')
+    chrome_options.add_argument("--allow-insecure-localhost")
     chrome_options.add_argument("--password-store=basic")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--enable-automation")
@@ -640,14 +641,14 @@ def optimize_html(html):
         tag.attrs['text'] = tagtext  # 設定 text 屬性為純文字內容
 
     # 根據 tag_list 進行條件判斷刪除
-    if tag.attrs.get("id") and any(t.lower() in tag.attrs["id"].lower() for t in tag_list):
+    if tag.attrs and tag.attrs.get("id") and any(t.lower() in tag.attrs["id"].lower() for t in tag_list):
         tag.decompose()
-    elif tag.attrs.get("class") and any(t.lower() in ' '.join(tag.attrs["class"]).lower() for t in tag_list):
+    elif tag.attrs and tag.attrs.get("class") and any(t.lower() in ' '.join(tag.attrs["class"]).lower() for t in tag_list):
         tag.decompose()
 
     # 7. 處理 <a> 標籤：只保留 href 屬性且 href 長度不超過 320
     for a_tag in soup.find_all('a'):
-        href = a_tag.get('href') if 'href' in a_tag else a_tag.attrs.get('href')
+        href = a_tag.get('href') if 'href' in a_tag else a_tag.attrs.get('href') if a_tag.attrs else ''
         # 若 href 存在且長度不超過 320，則只保留 href 屬性；否則刪除該 <a> 標籤
         if href:
             # 檢查是否符合 ".html" 後有 ; 或 : 的情況，並進行截斷
@@ -679,95 +680,104 @@ def get_html_content(url):
     window_size = None
 
     try:
-        with webdriver.Chrome(options=chrome_options) as driver:
-            driver.get(url)
-            driver.implicitly_wait(4)
-            #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
+        try:
+            with webdriver.Chrome(options=chrome_options) as driver:
+                driver.get(url)
+                driver.implicitly_wait(5)
+                #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
-            # 獲取頁面尺寸
-            window_size = driver.get_window_size()
-            outer_divs = driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div")
+                # 獲取頁面尺寸
+                window_size = driver.get_window_size()
+                #outer_divs = driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div")
 
-            # 設置分類清單
-            contents = []
-            banners = []
+                # 設置分類清單
+                contents = []
+                banners = []
 
-            # 計算文字單詞數
-            def count_words(text):
-                return len(text.split())
+                # 計算文字單詞數
+                def count_words(text):
+                    return len(text.split())
 
-            # 遍歷所有 div 元素並應用條件
-            for d in driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div"):
-                try:
-                    if d.text=='' or not d.is_displayed() or d.rect['height'] is None or d.rect['width'] is None or d.rect['height'] == 0 or d.rect['width'] == 0 or (d.rect['height'] * d.rect['width']< 100):
-                        banners.append(d)
-                        continue
-                    elif d.rect['height'] / d.rect['width'] > 5:
-                        banners.append(d)
-                        continue
-                    # drect = copy.deepcopy(d.rect)
-                    # drect['outerHTML'] = d.get_attribute('outerHTML').strip()
-                    # drect['text'] = d.get_attribute("textContent").strip()
-                    #
-                    # # 基本過濾條件
-                    # if not d.is_displayed():
-                    #     continue
-                    # if drect['height'] is None or drect['width'] is None or drect['height'] == 0 or drect['width'] == 0:
-                    #     continue
-                    # if drect['height'] * drect['width'] < 100:
-                    #     continue
-                    #
-                    # # 判斷「重要內容」
-                    # if (window_height > 0 and drect['height'] / window_height > 0.6 and drect[
-                    #     'width'] / window_width > 0.6 and
-                    #         not (drect['x'] == 0 and drect['y'] == 0)):
-                    #     if len(drect['text']) > 10:
-                    #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
-                    #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and len(
-                    #                     drect['text']) > 50 and len(contents[-1]['text']) > 50:
-                    #                 pass
-                    #             else:
-                    #                 contents.append(drect)
-                    #
-                    # # 判斷「橫幅區域」
-                    # elif (drect['height'] / drect['width'] > 5 and drect['height'] > 0.5 * window_height and
-                    #       (drect['x'] < window_width / 4 or drect['x'] > 3 * window_width / 4)):
-                    #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
-                    #         banners.append(drect)
-                    #
-                    # # 判斷寬橫幅
-                    # elif (drect['height'] > 0 and window_width > 0 and (drect['width'] / drect['height']) / (
-                    #         window_width / window_height) > 5 and
-                    #       drect['width'] > 0.5 * window_width and (
-                    #               drect['y'] < window_height / 4 or drect['y'] > 3 * window_height / 4)):
-                    #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
-                    #         banners.append(drect)
-                    #
-                    # # 進一步的「重要內容」判斷
-                    # elif (drect['height'] and 0.5 < drect['width'] / drect['height'] < 2 and
-                    #       drect['width'] > 0.5 * window_width and drect['height'] > 0.5 * window_height and drect[
-                    #           'y'] < window_height / 3):
-                    #     if count_words(drect['text']) > 10:
-                    #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
-                    #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and count_words(
-                    #                     drect['text']) > 50 and count_words(contents[-1]['text']) > 50:
-                    #                 pass
-                    #             else:
-                    #                 contents.append(drect)
+                # 遍歷所有 div 元素並應用條件
+                for d in driver.find_elements(By.XPATH, "//body/div | //body/div/* | //body/div/*/*| //body/div/*/*/*| //body/*/*/*/div| //body/*/*/*/*/div"):
+                    try:
+                        if d.text=='' or not d.is_displayed() or d.rect['height'] is None or d.rect['width'] is None or d.rect['height'] == 0 or d.rect['width'] == 0 or (d.rect['height'] * d.rect['width']< 100):
+                            banners.append(d)
+                            continue
+                        elif d.rect['height'] / d.rect['width'] > 5:
+                            banners.append(d)
+                            continue
+                        # drect = copy.deepcopy(d.rect)
+                        # drect['outerHTML'] = d.get_attribute('outerHTML').strip()
+                        # drect['text'] = d.get_attribute("textContent").strip()
+                        #
+                        # # 基本過濾條件
+                        # if not d.is_displayed():
+                        #     continue
+                        # if drect['height'] is None or drect['width'] is None or drect['height'] == 0 or drect['width'] == 0:
+                        #     continue
+                        # if drect['height'] * drect['width'] < 100:
+                        #     continue
+                        #
+                        # # 判斷「重要內容」
+                        # if (window_height > 0 and drect['height'] / window_height > 0.6 and drect[
+                        #     'width'] / window_width > 0.6 and
+                        #         not (drect['x'] == 0 and drect['y'] == 0)):
+                        #     if len(drect['text']) > 10:
+                        #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
+                        #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and len(
+                        #                     drect['text']) > 50 and len(contents[-1]['text']) > 50:
+                        #                 pass
+                        #             else:
+                        #                 contents.append(drect)
+                        #
+                        # # 判斷「橫幅區域」
+                        # elif (drect['height'] / drect['width'] > 5 and drect['height'] > 0.5 * window_height and
+                        #       (drect['x'] < window_width / 4 or drect['x'] > 3 * window_width / 4)):
+                        #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
+                        #         banners.append(drect)
+                        #
+                        # # 判斷寬橫幅
+                        # elif (drect['height'] > 0 and window_width > 0 and (drect['width'] / drect['height']) / (
+                        #         window_width / window_height) > 5 and
+                        #       drect['width'] > 0.5 * window_width and (
+                        #               drect['y'] < window_height / 4 or drect['y'] > 3 * window_height / 4)):
+                        #     if len(banners) == 0 or drect['outerHTML'] not in banners[-1]['outerHTML']:
+                        #         banners.append(drect)
+                        #
+                        # # 進一步的「重要內容」判斷
+                        # elif (drect['height'] and 0.5 < drect['width'] / drect['height'] < 2 and
+                        #       drect['width'] > 0.5 * window_width and drect['height'] > 0.5 * window_height and drect[
+                        #           'y'] < window_height / 3):
+                        #     if count_words(drect['text']) > 10:
+                        #         if len(contents) == 0 or drect['outerHTML'] not in contents[-1]['outerHTML']:
+                        #             if len(contents) > 0 and drect['text'] in contents[-1]['text'] and count_words(
+                        #                     drect['text']) > 50 and count_words(contents[-1]['text']) > 50:
+                        #                 pass
+                        #             else:
+                        #                 contents.append(drect)
 
-                except Exception as e:
-                    print(f"元素處理失敗：{e}")
+                    except Exception as e:
+                        print(f"元素處理失敗：{e}")
 
 
-            # 獲取HTML內容
-            head_html = driver.find_element(By.TAG_NAME, 'head').get_attribute('outerHTML')
-            body_html = driver.find_element(By.TAG_NAME, 'body').get_attribute('outerHTML')
-            for elem in banners:
-                _html=elem.get_attribute('outerHTML')
-                if _html in body_html:
-                    body_html=body_html.replace(_html,'')
-            html_content ='<html>' + head_html + body_html + '</html>'
+                # 獲取HTML內容
+                head_html = driver.find_element(By.TAG_NAME, 'head').get_attribute('outerHTML')
+                body_html = driver.find_element(By.TAG_NAME, 'body').get_attribute('outerHTML')
+                # # 如果確實需要 refresh，先執行
+                # driver.refresh()
+                # # refresh 後給瀏覽器和網頁一些時間，讓 DOM 結構穩定下來
+                # WebDriverWait(driver, 4).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
+                for elem in banners:
+                    _html=elem.get_attribute('outerHTML')
+                    if _html in body_html:
+                        body_html=body_html.replace(_html,'')
+                html_content ='<html>' + head_html + body_html + '</html>'
+        except StaleElementReferenceException:
+            # 遇到 stale，代表此元素又被DOM刷新或其他原因
+            # 依需求，可直接跳過或重新抓一次
+            pass
         # WebDriver 在這裡被釋放
 
         if html_content:

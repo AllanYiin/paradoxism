@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from paradoxism.tools import *
 import requests
 
 from paradoxism.utils import *
@@ -93,7 +93,7 @@ def better_search(query_intent, keywords_cnt=3, search_domain=None,it=None):
 
 
 @tool('gpt-4o')
-def search_rag(u, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_question_variants=True,variants_cnt=3,it=None):
+def search_rag(ur, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_question_variants=True,variants_cnt=3,it=None):
     """
 
     Args:
@@ -157,10 +157,10 @@ def quick_search(ur, kw,dm=None,l=None,**kwargs):
     """
 
     Args:
-        ur: 使用者使用此工具的意圖
-        kw: 快速搜索的查詢關鍵字
-        dm: 指定搜索網域範圍
-        l: 語言 ISO 639-1編碼，例如台灣繁體中文為'zh-TW
+        ur (str): 使用者使用此工具的意圖
+        kw (str): 快速搜索的查詢關鍵字
+        dm (str): 指定搜索網域範圍
+        l (str): 語言 ISO 639-1編碼，例如台灣繁體中文為'zh-TW
         **kwargs:
     Returns:
 
