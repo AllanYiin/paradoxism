@@ -22,7 +22,7 @@
 
 只需要在函數上方加入@agent即可設定語言模型，system prompt，而在docstring還可以設定固定的static instruction。在函數上的type hinting會轉為強制型別檢查。而其中的prompt則是根據
 
-```
+```python
 # paradoxism
 @agent('gpt-4o',system_prompt='你是一個有10年以上口譯經驗且曾經旅居海外的英語翻譯師')
 def en_translator(sentence:str)->str:
@@ -35,7 +35,7 @@ def en_translator(sentence:str)->str:
 
 執行@agent的函數：
 
-```
+```python
 print(en_translator('紅豆生南國，春來發幾枝。願君多採擷，此物最相思')) 
 -----------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ Red beans grow in the southern land, how many sprout in springtime's hand. I wis
 
 安裝程式包
 
-```
+```python
 pip install paradoxism
 ```
 
@@ -59,7 +59,6 @@ openai: "OPENAI_API_KEY"
 claude: "ANTHROPIC_API_KEY"`
 
 azure由於一次可能需要維護數台instance，所以無法儲存於單一環境變數，需要將相關資訊維護於oai.json之中，請參考再專案中有放置oai_sample.json，只要以相同格式維護，將檔名修改為oai.json即可
-
 
 ## 專案願景
 
