@@ -81,8 +81,11 @@ def prompt(prompt_text: str, input_kwargs=None,output_type:str='str',**kwargs):
     full_prompt = f"{static_instruction}\n{prompt_text}\n{input_info}"
     is_json=False
     if output_type in ['dict','json']:
-        full_prompt = full_prompt+"\n\n請以json的格式輸出"
+        full_prompt = full_prompt+"\n\n請以json的格式輸出，直接輸出，無須解釋"
         is_json=True
+    if output_type in ['list']:
+        full_prompt = full_prompt + "\n\n請以無序列表輸出，直接輸出，無須解釋"
+        is_json = False
 
     # 使用 ThreadPoolExecutor 非同步執行 llm_client.generate
     with ThreadPoolExecutor() as executor:
