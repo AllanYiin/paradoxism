@@ -74,7 +74,7 @@ setup(name=NAME,
       keywords=['chatgpt', 'gpt4', 'llm', 'prompt'],
       packages=find_packages(exclude=[".idea"]),
       package_data={
-          'paradoxism': ['model_infos.json''examples/*.md'],
+          'paradoxism': ['model_infos.json','oai_sample.json','examples/*/*.md','examples/*.md','assets/NotoSansTC-Thin.ttf'],
       },
       include_package_data=True,
       scripts=[],
