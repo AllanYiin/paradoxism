@@ -72,7 +72,7 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
             # 如果能抓到符合 JSON 格式
             if json_match:
                 clean_response = json_match.group(0)
-                clean_obj = eval(clean_response)
+                clean_obj =  json.loads(clean_response)
 
                 # 這裡先判斷是否為 dict 或 list
                 if isinstance(clean_obj, dict):
@@ -88,26 +88,29 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
                         # 如果是 list 且要轉成 dict，就用 enumerate 轉成 {idx:val, ...}
                         return {i: k for i, k in enumerate(clean_obj)}
 
-            # 如果 json_match 抓不到有效 JSON，且目標是 'list'，就嘗試從文字中抓取列表
-            if target_type == 'list':
-                # 嘗試抓取有序或無序列表項目
-                # (1) 有序列表 e.g. "1. 內容"、"2. 內容"
-                # (2) 無序列表 e.g. "* 內容"、"- 內容"、"+ 內容"
-                # 使用 MULTILINE 模式以支援多行偵測
-                bullet_pattern = r"(?m)^\s*(?:\d+\.\s+|[\*\-\+]\s+)(.*)"
-                found_items = regex.findall(bullet_pattern, response)
+                # 如果 json_match 抓不到有效 JSON，且目標是 'list'，就嘗試從文字中抓取列表
+                    # ---------- list ----------
+            if target_type == "list":
+                # 尝试直接解析为 JSON 数组
+                try:
+                    return json.loads(response)
+                except json.JSONDecodeError:
+                    pass
 
-                if found_items:
-                    # 將每個項目去除前後空白後回傳
-                    return [item.strip() for item in found_items]
-                else:
-                    # 代表既不是 JSON，也沒找到符合模式的列表
-                    print("Error: Not a valid JSON format or list pattern in text")
-                    return "Error: Could not parse as a bullet or ordered list"
+                # 使用正则表达式提取 Python 清单结构
+                list_match = regex.search(r"\[.*?\]", response, regex.DOTALL)
+                if list_match:
+                    try:
+                        return json.loads(list_match.group(0))
+                    except json.JSONDecodeError:
+                        raise  TypeError("Error: Extracted list is not valid JSON")
+
+                # 如果既不是 JSON，也没有匹配到清单，报错
+                raise  TypeError("Error: Could not parse as list")
 
             # 如果不是要轉換成 list/dict，就直接報錯 (因為前面已經失敗)
             print("Error: Not a valid JSON format", red_color(response), flush=True)
-            return "Error: Not a valid JSON format: "
+            raise  TypeError("Error: Not a valid JSON format: ")
 
         # ---------- json_schema ----------
         elif target_type == "json_schema":
@@ -130,10 +133,10 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
                     except ValidationError as e:
                         print("Error: Not a valid JSON format", red_color(response), flush=True)
                         return f"JSON Schema validation error: {str(e)}"
-                return "Error: No schema provided for JSON schema validation"
+                raise  TypeError("Error: No schema provided for JSON schema validation")
             else:
                 print("Error: Not a valid JSON format", red_color(response), flush=True)
-                return "Error: Not a valid JSON format"
+                raise  TypeError("Error: Not a valid JSON format")
 
         # ---------- code ----------
         elif target_type == "code":
@@ -144,14 +147,14 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
             inline_code_match = regex.search(r"`([^`]+)`", response)
             if inline_code_match:
                 return inline_code_match.group(1).strip()
-            return "Error: No code block found"
+            raise TypeError("Error: No code block found")
 
         # ---------- xml ----------
         elif target_type == "xml":
             try:
                 return ET.fromstring(response)
             except ET.ParseError as e:
-                return f"Error during XML conversion: {str(e)}"
+                raise  TypeError(f"Error during XML conversion: {str(e)}")
 
         # ---------- str ----------
         elif target_type == "str":
