@@ -88,24 +88,32 @@ def agent(model: str, system_prompt: str, temperature: float = 0.7, stream=False
             # 執行函數
             result = execute_function(func, *args, **kwargs_inner)
             if len(_thread_local.returns) == 1:
-                return_type = _thread_local.returns[0]['return_type']
-                # Comprehensive type check using typing utilities
-                origin_type = get_origin(return_type)
-                type_args = get_args(return_type)
-                if origin_type is not None:
-                    if not isinstance(result, origin_type):
-                        logger.warning(f"Result type mismatch: expected {origin_type}, got {type(result)}. Skipping cast.")
+                try:
+                    return_type = _thread_local.returns[0]['return_type']
+                    return_type=str if not return_type or return_type.lower()=='unknown' else return_type
+                    # Comprehensive type check using typing utilities
+                    origin_type = get_origin(return_type)
+                    type_args = get_args(return_type)
+                    if origin_type is not None:
+                        if not isinstance(result, origin_type):
+                            logger.warning(f"Result type mismatch: expected {origin_type}, got {type(result)}. Skipping cast.")
+                        else:
+                            result = force_cast(result, return_type)
+                    elif type_args:
+                        if not any(isinstance(result, arg) for arg in type_args):
+                            logger.warning(f"Result type mismatch: expected one of {type_args}, got {type(result)}. Skipping cast.")
+                        else:
+                            result = force_cast(result, return_type)
+                    elif not isinstance(result, return_type):
+                        logger.warning(f"Result type mismatch: expected {return_type}, got {type(result)}. Skipping cast.")
                     else:
                         result = force_cast(result, return_type)
-                elif type_args:
-                    if not any(isinstance(result, arg) for arg in type_args):
-                        logger.warning(f"Result type mismatch: expected one of {type_args}, got {type(result)}. Skipping cast.")
-                    else:
-                        result = force_cast(result, return_type)
-                elif not isinstance(result, return_type):
-                    logger.warning(f"Result type mismatch: expected {return_type}, got {type(result)}. Skipping cast.")
-                else:
-                    result = force_cast(result, return_type)
+                except TypeError as e:
+                    logger.error(f"Error in type casting: {e}")
+                    logger.error(f"Return type: {return_type}, Result: {result}")
+                except:
+                    PrintException()
+
 
             execution_time = time.time() - start_time
             logger.info(f"agent {func.__name__} executed in {execution_time:.4f} seconds with agent_key: {agent_key} and input_args: {parsed_results['input_args']}")
