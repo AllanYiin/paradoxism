@@ -167,7 +167,7 @@ def search_bing(query: str) -> list:
     session.headers.update(headers)
     search_url = f"https://www.bing.com/search?{query}"
 
-    response = session.get(search_url, headers=headers)
+    response = session.get(search_url, headers=headers, verify=False)
     time.sleep(0.5)
     soup = BeautifulSoup(response.text, 'html.parser')
     total_words = len(soup.text)
@@ -193,8 +193,8 @@ def search_bing(query: str) -> list:
             print('Connection Error')
             print(e)
             PrintException()
-    if len(search_results) == 5:
-        search_results = search_results[:5]
+    # if len(search_results) >= 5:
+    #     search_results = search_results[:5]
 
     return search_results, session
 
@@ -234,7 +234,10 @@ def search_google(query: str) -> list:
         'User-Agent': random.choice(user_agents)}
 
     session = requests.Session()
-    response = session.get(search_url, headers=headers)
+    response = session.get(search_url, headers=headers, verify=False)
+    if response and response.status_code ==429:
+        print(429,'請求量過多!')
+        raise Exception('429請求量過多!')
     soup = BeautifulSoup(response.content, 'html.parser')
     search_results = {}
     total_words = len(soup.text)
@@ -1015,7 +1018,7 @@ def search_webpilot(url: str, *args, **kwargs) -> str:
         "rt": False
     }
     endpoint = "https://webreader.webpilotai.com/api/visit-web"
-    resp = requests.post(endpoint, headers=header, json=data)
+    resp = requests.post(endpoint, headers=header, json=data, verify=False)
 
     logging.debug("webpilot resp: {}".format(resp.json()))
     # temp = resp.json()
