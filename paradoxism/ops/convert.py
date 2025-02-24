@@ -66,8 +66,9 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
 
         # ---------- json / dict / list ----------
         elif target_type in ["json", "dict", "list"]:
-            response_cleaned = regex.sub(r"OrderedDict\(\[.*?\]\)", "{}", response)
-            json_match = regex.search(json_uncompile_pattern, response_cleaned, regex.DOTALL | regex.VERBOSE)
+            if 'OrderedDict' in response:
+                response = regex.sub(r"OrderedDict\(\[.*?\]\)", "{}", response)
+            json_match = regex.search(json_uncompile_pattern, response, regex.DOTALL | regex.VERBOSE)
 
             # 如果能抓到符合 JSON 格式
             if json_match:
