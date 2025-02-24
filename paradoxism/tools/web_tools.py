@@ -1,4 +1,5 @@
 import json
+import random
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from paradoxism.tools import *
@@ -7,13 +8,13 @@ import requests
 from paradoxism.utils import *
 from paradoxism.utils import regex_utils, web_utils
 import pysnooper
-
+import urllib3
 __all__ = ["quick_search","open_url","detail_search"]
 
 
 
 #sem = threading.Semaphore(3)
-
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def get_pdf_content(pdf_url):
@@ -64,7 +65,7 @@ def better_search(query_intent, keywords_cnt=3, search_domain=None,it=None):
             if search_domain:
                 query=query+" site:{0}".format(search_domain)
 
-            google_search_lists, _ = web_utils.search_google(query)
+            google_search_lists = web_utils.search_google(query)
             # search_url_bing = f"https://www.bing.com/search?{query}"
             print(item, google_search_lists)
             if all_search_list is None:
@@ -153,14 +154,14 @@ def search_rag(ur, top_k=5, min_similarity=0.88, internal_similarity=0.97,use_qu
         return json.dumps(return_results, ensure_ascii=False)
 
 @tool('gpt-4o')
-def quick_search(ur, kw,dm=None,l=None,**kwargs):
+def quick_search(ur, kw,dm=None,language=None,**kwargs):
     """
 
     Args:
         ur (str): 使用者使用此工具的意圖
         kw (str): 快速搜索的查詢關鍵字
         dm (str): 指定搜索網域範圍
-        l (str): 語言 ISO 639-1編碼，例如台灣繁體中文為'zh-TW
+        language (str): 語言 ISO 639-1編碼，例如台灣繁體中文為'zh-TW
         **kwargs:
     Returns:
 
@@ -169,29 +170,39 @@ def quick_search(ur, kw,dm=None,l=None,**kwargs):
     kw=kw.split('+')
     # 避免關鍵字被分拆 世界紀錄=>世界 紀錄
     kw='+'.join(['"'+w+'"' if len(w)>2 else w for w in kw])
-    return_results =[]
+
     if dm and dm not in kw:
         kw=kw+" site:{0}".format(dm)
-    results=web_utils.search_google(kw)[0]
-    if results and len(results)>0:
-        return_results.extend(results)
-    return json.dumps(return_results, ensure_ascii=False)
+    if random.random()<0.5:
+        results=web_utils.search_bing(kw)
+    else:
+        results=web_utils.search_google(kw)
+    return results
 
 @tool('gpt-4o')
 def open_url(url,**kwargs):
     print(yellow_color(f"open_url url:{url}"), flush=True)
-    response = requests.head(url)
-    if 'application/pdf' in response.headers.get('Content-Type', '') or url.endswith('.pdf'):
+    if url.startswith('www'):
         try:
-            pdf_doc_text = get_pdf_content(url)
-            cxt.citations.append(f'![pdf](./image/pdf.png) [{link.split("/")[-1]}]({url})')
-            return pdf_doc_text
+            response = requests.get("https://"+url, verify=False)
+            url="https://" + url
         except:
-            PrintException()
-    else:
-        #new_results = web_utils.retrieve_clear_html(url)
+            try:
+                response = requests.get("http://" + url, verify=False)
+                url = "http://" + url
+            except:
+                PrintException()
+                return ''
+    if url.startswith('http'):
         new_results = web_utils.get_html_content(url)
         return new_results
+    else:
+        try:
+            response = requests.get(url, verify=False)
+        except:
+            pass
+
+
 
 @tool('gpt-4o')
 def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):
