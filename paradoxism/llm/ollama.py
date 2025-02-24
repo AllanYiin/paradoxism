@@ -16,7 +16,7 @@ cxt = context._context()
 __all__ = ["OllamaClient"]
 
 class OllamaClient(LLMClient):
-    def __init__(self, model='llama3.1', endpoint='http://the-ollama-service.fetag.cc:80',tools=None):
+    def __init__(self, model='llama3.1', endpoint='',tools=None):
         # 無須金鑰
         super().__init__('', model, tools)
         self.client =ollama.Client(endpoint)
