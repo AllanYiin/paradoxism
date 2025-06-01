@@ -16,6 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install regex
           pip install .[tests]
       - name: Run tests
         run: python -m pytest
