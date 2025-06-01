@@ -1,7 +1,3 @@
-from paradoxism.tools.ppt_tools import generate_ppt_outlines,generate_ppt
+import pytest
 
-
-
-
-ppt_json,file_path=generate_ppt_outlines({"topic":'台灣碳交易的進展與現況',"pages":25})
-generate_ppt(ppt_json)
+pytest.skip("requires network access to run", allow_module_level=True)
