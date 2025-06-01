@@ -4,6 +4,7 @@ import sys
 import traceback
 import inspect
 import linecache
+import logging
 __all__ = ['PrintException', 'sanitize_path', 'split_path', 'make_dir_if_need','yellow_color','red_color','gray_color','green_color','orange_color','blue_color','cyan_color','violet_color']
 
 
@@ -22,7 +23,7 @@ def PrintException():
     filename = f.f_code.co_filename
     linecache.checkcache(filename)
     line = linecache.getline(filename, lineno, f.f_globals)
-    print('EXCEPTION IN ({}, LINE {} "{}"): {}\n'.format(filename, lineno, line.strip(), exc_obj))
+    logging.error('EXCEPTION IN (%s, LINE %s "%s"): %s', filename, lineno, line.strip(), exc_obj)
     traceback.print_exc(limit=None, file=sys.stderr)
     # traceback.print_tb(tb, limit=1, file=sys.stdout)
     # traceback.print_exception(exc_type, exc_obj, tb, limit=2, file=sys.stdout)
@@ -101,7 +102,7 @@ def make_dir_if_need(path):
         try:
             os.makedirs(folder)
         except Exception as e:
-            print(e)
+            logging.error(e)
             sys.stderr.write('folder:{0} is not valid path'.format(folder))
     return sanitize_path(path)
 

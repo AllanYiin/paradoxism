@@ -4,6 +4,7 @@ from db import add_api_record, SessionLocal, add_scheduled_task
 from models import ScheduledTask
 from sqlalchemy.orm import Session
 import time
+import logging
 
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -19,7 +20,7 @@ def schedule_task(user, api_name, func, cron_schedule):
 
     # 確認是否已經有此排程，避免重複
     if scheduler.get_job(job_id):
-        print(f"排程任務 {job_id} 已存在，跳過創建。")
+        logging.info("排程任務 %s 已存在，跳過創建。", job_id)
         return
 
     scheduler.add_job(

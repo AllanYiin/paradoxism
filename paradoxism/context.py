@@ -115,7 +115,7 @@ def make_dir_if_need(path):
         try:
             os.makedirs(folder)
         except Exception as e:
-            print(e)
+            logging.error(e)
             sys.stderr.write('folder:{0} is not valid path'.format(folder))
     return sanitize_path(path)
 
@@ -136,7 +136,7 @@ def is_instance(instance, check_class):
         return any([is_instance(instance, cc) for cc in check_class])
     else:
         if not inspect.isclass(check_class):
-            print(red_color('Input check_class {0} should a class, but {1}'.format(check_class, type(check_class))))
+            logging.error(red_color('Input check_class {0} should a class, but {1}'.format(check_class, type(check_class))))
         return False
 
 
@@ -152,7 +152,7 @@ def PrintException():
     filename = f.f_code.co_filename
     linecache.checkcache(filename)
     line = linecache.getline(filename, lineno, f.f_globals)
-    print('EXCEPTION IN ({}, LINE {} "{}"): {}\n'.format(filename, lineno, line.strip(), exc_obj))
+    logging.error('EXCEPTION IN (%s, LINE %s "%s"): %s', filename, lineno, line.strip(), exc_obj)
     traceback.print_exc(limit=None, file=sys.stderr)
     # traceback.print_tb(tb, limit=1, file=sys.stdout)
     # traceback.print_exception(exc_type, exc_obj, tb, limit=2, file=sys.stdout)
@@ -173,7 +173,7 @@ def get_sitepackages():  # pragma: no cover
     # to using distutils if we can
     # https://github.com/pypa/virtualenv/issues/355
     except Exception as e:
-        print(e)
+        logging.error(e)
         try:
             from distutils.sysconfig import get_python_lib
 
@@ -411,7 +411,7 @@ class _Context:
             except OSError as e:
                 # Except permission denied and potential race conditions
                 # in multi-threaded environments.
-                print(e)
+                logging.error(e)
 
         return _paradoxism_dir
 
@@ -516,9 +516,9 @@ class _Context:
                                 self.__setattr__(k, 'openai')
 
                         except Exception as e:
-                            print(e)
+                            logging.error(e)
             except ValueError as ve:
-                print(ve)
+                logging.error(ve)
 
     def regist_resources(self, resource_name, resource):
         if not hasattr(self._thread_local_info, 'resources'):
@@ -540,7 +540,7 @@ class _Context:
             if self.is_initialized:
                 self.write_session(os.path.join(self.get_paradoxism_dir(), 'session.json'))
         except Exception as e:
-            print(name, value, e)
+            logging.error('%s %s %s', name, value, e)
             PrintException()
 
 

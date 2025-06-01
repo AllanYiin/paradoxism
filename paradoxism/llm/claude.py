@@ -11,6 +11,7 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 from paradoxism import context
 from paradoxism.context import *
 from paradoxism.llm.base import *
+import logging
 
 cxt = context._context()
 __all__ = ["ClaudeClient"]
@@ -28,10 +29,10 @@ class ClaudeClient(LLMClient):
         self.model_info = eval(open('./model_infos.json', encoding="utf-8").read())['anthropic']
         if model in self.model_info:
             self.max_tokens = self.model_info[model]["max_token"]
-            print(f"Model: {self.model}, Max Tokens: {self.max_tokens}")
+            logging.info("Model: %s, Max Tokens: %s", self.model, self.max_tokens)
         else:
-            self.max_tokens=4096
-            print('{0} is not valid model!'.format(model))
+            self.max_tokens = 4096
+            logging.error('%s is not valid model!', model)
         self.params = {'top_p': 1, 'temperature': 1, 'top_k': 1}
 
     def openai_tools_to_claude_tools(self,openai_tool):

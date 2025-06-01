@@ -1,6 +1,7 @@
 import re
 import string
 from typing import List
+import logging
 
 from paradoxism.utils.regex_utils import count_words
 
@@ -380,7 +381,7 @@ def convert_data(text):
                 number = int(number)
             return number  # 返回數字
         except Exception as e:
-            print(e)
+            logging.error(e)
             return orig_string  # 轉換失敗，返回字串
     else:
         return orig_string  # 不匹配正則表達式，返回字串

@@ -2,6 +2,7 @@ import regex
 import json
 from functools import lru_cache
 import inspect
+import logging
 from typing import Callable
 __all__ = [
     "choice_pattern", "delta_pattern","json_uncompile_pattern", "json_pattern", 'numbered_list_member_pattern', 'unordered_listitem_pattern',
@@ -129,7 +130,7 @@ def extract_json(text):
             json_obj = json.loads(match)
             json_objects.append(json_obj)
         except json.JSONDecodeError:
-            print(f"無法解析的 JSON 區塊: {match}")
+            logging.warning("無法解析的 JSON 區塊: %s", match)
 
     return json_objects
 

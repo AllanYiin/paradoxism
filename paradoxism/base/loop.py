@@ -7,6 +7,7 @@ from itertools import accumulate, combinations
 from typing import Callable, Iterable, Iterator, List, Dict, Any,Union
 from paradoxism.context import get_optimal_workers
 from collections.abc import ItemsView
+import logging
 __all__ = ["PCombinations", "PForEach", "PMap", "PFilter"]
 
 
@@ -26,13 +27,13 @@ def retry_with_fallback(func, value, index, max_retries=3, delay=0.5):
             if result is not None:
                 return result
             else:
-                print(f"重試 {attempt + 1}/{max_retries} 失敗: 返回 None, 索引: {index}, 值: {value}")
+                logging.warning("重試 %s/%s 失敗: 返回 None, 索引: %s, 值: %s", attempt + 1, max_retries, index, value)
         except Exception as e:
-            print(
-                f"重試 {attempt + 1}/{max_retries} 遇到異常: 索引: {index}, 值: {value}, 異常原因: {traceback.format_exc()}")
+            logging.error(
+                "重試 %s/%s 遇到異常: 索引: %s, 值: %s, 異常原因: %s", attempt + 1, max_retries, index, value, traceback.format_exc())
         time.sleep(delay)
 
-    print(f"達到最大重試次數: {max_retries}，放棄索引: {index}, 值: {value}")
+    logging.error("達到最大重試次數: %s，放棄索引: %s, 值: %s", max_retries, index, value)
     return None
 
 
@@ -163,7 +164,7 @@ def PAccumulate(func, enumerable, max_workers=None, max_retries=3, delay=0.5,out
                 for j, value in enumerate(accumulated_batch):
                     results[start_index + j] = value
             except Exception as exc:
-                print(f'批次累加時產生異常: {exc}')
+                logging.error('批次累加時產生異常: %s', exc)
     for i,value in enumerate(results):
         if i==0:
             pass
@@ -205,7 +206,7 @@ def PCombinations(func, enumerable, r, max_workers=None, max_retries=3, delay=0.
             try:
                 results[index] = future.result()
             except Exception as exc:
-                print(f'組合 {combinations_list[index]} 執行失敗: {exc}')
+                logging.error('組合 %s 執行失敗: %s', combinations_list[index], exc)
                 results[index] = None  # 記錄異常情況
     if output_type == "dict":
         return dict(zip(combinations_list, results))
@@ -295,7 +296,7 @@ def PFilter(predicate, enumerable, max_workers=None, max_retries=3, delay=0.5, r
                 if future.result():
                     results[index] = enumerable[index]
             except Exception as exc:
-                print(f'枚舉值 {enumerable[index]} 執行判斷時產生最終異常: {exc}')
+                logging.error('枚舉值 %s 執行判斷時產生最終異常: %s', enumerable[index], exc)
 
     return [result for result in results if result is not None]
 
@@ -355,7 +356,7 @@ def PBranch(
             try:
                 return func(value)
             except Exception as e:
-                print(f"重試 {attempt + 1}/{max_retries} 次失敗，原因: {e}")
+                logging.warning("重試 %s/%s 次失敗，原因: %s", attempt + 1, max_retries, e)
                 time.sleep(delay)
         return f"Error after {max_retries} retries"
 

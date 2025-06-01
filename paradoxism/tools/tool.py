@@ -10,6 +10,7 @@ from paradoxism.utils.docstring_utils import *
 from paradoxism.utils.input_dict_utils import *
 from paradoxism.ops.base import reference
 from paradoxism.utils.regex_utils import extract_docstring
+import logging
 
 def _args_to_dict(func, *args, **kwargs):
     """
@@ -70,7 +71,7 @@ class BaseTool:
             temperature=0.0
         )
         tool_args = response.choices[0].message.content
-        print('tool_args生成完畢!\n', tool_args, flush=True)
+        logging.info('tool_args生成完畢!\n%s', tool_args)
         return tool_args
 
     def __call__(self, input_kwargs, **kwargs):
@@ -96,7 +97,7 @@ class BaseTool:
             raise ValueError(f"LLM 回傳的引數不是合法 JSON：{tool_args_str}") from e
         # 調用原始工具函數
         result = self.base_func.__call__(**tool_args)
-        print(f'工具 {tool_name} 調用完畢')
+        logging.info('工具 %s 調用完畢', tool_name)
         return result
 
 

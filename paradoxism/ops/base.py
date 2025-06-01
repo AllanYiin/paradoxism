@@ -11,6 +11,7 @@ from paradoxism.utils.regex_utils import *
 from paradoxism.base.agent import _thread_local,LLMClient
 from paradoxism.ops.convert import *
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
 __all__ = ["prompt","chain_of_thought"]
 
@@ -100,9 +101,12 @@ def prompt(prompt_text: str, input_kwargs=None,output_type:str='str',**kwargs):
         parsed_response=force_cast(response,output_type)
     end_time = time.time()  # 記錄結束時間
     execution_time = end_time - start_time  # 計算執行時間
-    print(yellow_color(f"executed in {execution_time:.4f} seconds"),
-          gray_color('prompt:\n' + full_prompt.strip()),
-          green_color('result:\n' + str(parsed_response)),flush=True)  # 輸出執行時間
+    logging.info(
+        "%s %s %s",
+        yellow_color(f"executed in {execution_time:.4f} seconds"),
+        gray_color('prompt:\n' + full_prompt.strip()),
+        green_color('result:\n' + str(parsed_response))
+    )
 
     return parsed_response
 
@@ -168,9 +172,12 @@ def chain_of_thought(prompt_text: str, input_kwargs=None,output_type:str='str',*
         parsed_response=force_cast(response,output_type)
     end_time = time.time()  # 記錄結束時間
     execution_time = end_time - start_time  # 計算執行時間
-    print(yellow_color(f"executed in {execution_time:.4f} seconds"),
-          gray_color('prompt:\n' + full_prompt.strip()),
-          green_color('result:\n' + str(parsed_response)),flush=True)  # 輸出執行時間
+    logging.info(
+        "%s %s %s",
+        yellow_color(f"executed in {execution_time:.4f} seconds"),
+        gray_color('prompt:\n' + full_prompt.strip()),
+        green_color('result:\n' + str(parsed_response))
+    )
 
     return parsed_response
 
@@ -199,7 +206,7 @@ def parse_llm_response(response: str) -> Any:
             return parsed
         except Exception as e:
             PrintException()
-            print(response,flush=True)
+            logging.error("%s", response)
             raise ValueError(f"無法解析 Python 代碼塊內容: {e}")
     elif language == 'json':
         try:

@@ -110,8 +110,8 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
                 raise  TypeError("Error: Could not parse as list")
 
             # 如果不是要轉換成 list/dict，就直接報錯 (因為前面已經失敗)
-            print("Error: Not a valid JSON format", red_color(response), flush=True)
-            raise  TypeError("Error: Not a valid JSON format: ")
+            logging.error("Error: Not a valid JSON format %s", red_color(response))
+            raise TypeError("Error: Not a valid JSON format: ")
 
         # ---------- json_schema ----------
         elif target_type == "json_schema":
@@ -132,12 +132,12 @@ def force_cast(response: str, target_type: str, schema=None) -> Any:
                         validate(instance=parsed_json, schema=schema)
                         return parsed_json
                     except ValidationError as e:
-                        print("Error: Not a valid JSON format", red_color(response), flush=True)
+                        logging.error("Error: Not a valid JSON format %s", red_color(response))
                         return f"JSON Schema validation error: {str(e)}"
                 raise  TypeError("Error: No schema provided for JSON schema validation")
             else:
-                print("Error: Not a valid JSON format", red_color(response), flush=True)
-                raise  TypeError("Error: Not a valid JSON format")
+                logging.error("Error: Not a valid JSON format %s", red_color(response))
+                raise TypeError("Error: Not a valid JSON format")
 
         # ---------- code ----------
         elif target_type == "code":

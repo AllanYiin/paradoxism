@@ -5,6 +5,7 @@ import os
 import json
 import glob
 import copy
+import logging
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 # from dotenv import load_dotenv
 from paradoxism import context
@@ -113,7 +114,7 @@ class OpenAIClient(LLMClient):
             self.max_tokens = self.model_info[model]["max_token"]
 
         else:
-            print('{0} is not valid model!'.format(model))
+            logging.error('%s is not valid model!', model)
         self.params = {'top_p': 1, 'temperature': 1, 'top_k': 1, 'presence_penalty': 0,
                        'frequency_penalty': 0}
 

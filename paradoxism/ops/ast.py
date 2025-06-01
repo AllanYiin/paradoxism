@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 from itertools import combinations
 import textwrap
+import logging
 __all__ = ['CodeFlowParser']
 
 
@@ -287,13 +288,13 @@ class CodeFlowParser(ast.NodeVisitor):
         # 檢測並移除循環
         cycles = self.detect_cycles(optimized_G)
         while cycles:
-            print("Optimized graph has cycles:", cycles)
+            logging.info("Optimized graph has cycles: %s", cycles)
             for edge in cycles:
                 if optimized_G.has_edge(edge[0], edge[1]):
                     optimized_G.remove_edge(edge[0], edge[1])
-                    print(f"Removed edge: {edge[0]} -> {edge[1]}")
+                    logging.info("Removed edge: %s -> %s", edge[0], edge[1])
             cycles = self.detect_cycles(optimized_G)
-            print("Cycles removed in optimized graph.")
+            logging.info("Cycles removed in optimized graph.")
 
         return optimized_G
 
