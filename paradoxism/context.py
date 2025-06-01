@@ -38,10 +38,10 @@ xml:TypeAlias  = Union["ET.Element", "etree._Element"]
 
 
 
-model_info ={k:{v2['model']: v2 for v2 in  v}  for k,v in eval(open(os.path.join(os.path.dirname(__file__),'model_infos.json'), 'r',encoding="utf-8").read()).items()}
+model_info = {k: {v2['model']: v2 for v2 in v} for k, v in json.load(open(os.path.join(os.path.dirname(__file__), 'model_infos.json'), 'r', encoding="utf-8")).items()}
 oai={}
-if os.path.exists(os.path.join(os.path.dirname(__file__),'oai.json')):
-    oai={v['azure_deployment']: v for v in eval(open(os.path.join(os.path.dirname(__file__), 'oai.json'), encoding="utf-8").read())['azure']}
+if os.path.exists(os.path.join(os.path.dirname(__file__), 'oai.json')):
+    oai = {v['azure_deployment']: v for v in json.load(open(os.path.join(os.path.dirname(__file__), 'oai.json'), encoding="utf-8"))['azure']}
 
 def sanitize_path(path):
     """Sanitize the file or folder path, a same-format and absoluted path will return.
@@ -320,7 +320,7 @@ class _Context:
         self.executor = ThreadPoolExecutor(max_workers=8)
 
 
-        self.oai = {v['azure_deployment']: v for v in eval(open(os.path.join(split_path(__file__)[0],'oai.json'), encoding="utf-8").read())['azure']}
+        self.oai = {v['azure_deployment']: v for v in json.load(open(os.path.join(split_path(__file__)[0], 'oai.json'), encoding="utf-8"))['azure']}
         self.log_path = None
         self.paradoxism_dir = self.get_paradoxism_dir()
         self.service_type = None
