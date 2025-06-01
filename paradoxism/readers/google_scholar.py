@@ -4,6 +4,7 @@ import requests
 from tqdm import tqdm
 from scholarly import scholarly
 from datetime import datetime
+import logging
 
 class GoogleScholarReader:
     def __init__(self, base_path=None):
@@ -25,9 +26,9 @@ class GoogleScholarReader:
                     file.write(f"Title: {result['title']}\n")
                     file.write(f"URL: {result['url']}\n\n")
 
-            print(f"查詢結果已儲存至 {filename}")
+            logging.info("查詢結果已儲存至 %s", filename)
         except Exception as e:
-            print(f"儲存查詢結果失敗: {e}")
+            logging.error("儲存查詢結果失敗: %s", e)
 
     def get_pdf_url(self, url):
         """
@@ -101,14 +102,14 @@ class GoogleScholarReader:
                     # 以論文標題作為檔名下載 PDF
                     with open(file_path, "wb") as file:
                         file.write(response.content)
-                        print(f"PDF下載成功: {title}: {url}")
+                        logging.info("PDF下載成功: %s: %s", title, url)
                 else:
-                    content_type=response.headers.get("content-type")
-                    print(f"無法下載 {title}: {content_type}")
+                    content_type = response.headers.get("content-type")
+                    logging.error("無法下載 %s: %s", title, content_type)
             except requests.exceptions.RequestException as e:
-                print(f"無法下載 {title}: {e}")
+                logging.error("無法下載 %s: %s", title, e)
             except Exception as e:
-                print(f"寫入文件失敗: {e}")
+                logging.error("寫入文件失敗: %s", e)
 
     def search_and_download(self, query):
         """查詢 Google Scholar 並下載結果的 PDF 檔案"""
@@ -124,7 +125,7 @@ class GoogleScholarReader:
                 url = paper.get('pub_url', None)
                 url = self.get_pdf_url(url)
 
-                print(f"論文標題: {title}")
+                logging.info("論文標題: %s", title)
 
                 if url:
                     self.download_paper(title, url,save_path)
@@ -136,4 +137,4 @@ class GoogleScholarReader:
 
             self.save_results_to_file(query, results)
         except Exception as e:
-            print(f"查詢失敗: {e}")
+            logging.error("查詢失敗: %s", e)

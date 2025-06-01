@@ -5,6 +5,7 @@ from paradoxism.tools import *
 from paradoxism.ops.base import prompt
 from paradoxism.utils import make_dir_if_need,split_path,yellow_color
 from paradoxism.tools.image_tools import text2im
+import logging
 from pptx import Presentation
 from pptx.util import Inches
 from pptx.chart.data import CategoryChartData
@@ -32,8 +33,8 @@ def generate_ppt_outlines(topic:str,pages:int=20, main_style='專業的包浩斯
 
     with open(os.path.join(cxt.get_paradoxism_dir(),'ppt_outlines_{0}.json'.format(get_time_suffix())),'w') as ff:
         ff.write(json.dumps(ppt_json,ensure_ascii=False,indent=4))
-    print(yellow_color(ppt_json),flush=True)
-    return ppt_json,os.path.join(cxt.get_paradoxism_dir(),'ppt_outlines_{0}.json'.format(get_time_suffix()))
+    logging.info(yellow_color(ppt_json))
+    return ppt_json, os.path.join(cxt.get_paradoxism_dir(), 'ppt_outlines_{0}.json'.format(get_time_suffix()))
 
 
 
@@ -121,7 +122,7 @@ def update_slide_image(slide, ppt_slide_outline):
         picture = slide.shapes.add_picture(image, position["x"], position["y"], width=new_width, height=new_height)
         slide.shapes._spTree.remove(picture._element)  # 將圖片移至最底層
         slide.shapes._spTree.insert(2, picture._element)  # 保證圖片在其他元素之下
-        print('圖片生成完成{0}'.format(ppt_slide_outline["image"]["prompt"]))
+        logging.info('圖片生成完成%s', ppt_slide_outline["image"]["prompt"])
     return slide
 
 
@@ -183,7 +184,7 @@ def generate_ppt(ppt_json):
                 prs = suggest_base_slide(prs, page_num, "title_with_content", title, content)
             else:
                 prs = suggest_base_slide(prs, page_num, "blank", title, content)
-            print(f'第{page_num} :{title} 基礎投影片生成完成', flush=True)
+            logging.info('第%s :%s 基礎投影片生成完成', page_num, title)
         except:
             PrintException()
             prs.save(file_path)
@@ -194,7 +195,7 @@ def generate_ppt(ppt_json):
             page_num = page['page_num']
             if 'image' in page or "background_image" in page:
                 update_slide_image(slide, page)
-                print(f'第{page_num} :投影片圖像生成更新', flush=True)
+                logging.info('第%s :投影片圖像生成更新', page_num)
         except :
             PrintException()
             prs.save(file_path)

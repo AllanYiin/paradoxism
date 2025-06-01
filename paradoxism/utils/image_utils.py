@@ -5,6 +5,7 @@ import base64
 import os
 import io
 from io import BytesIO
+import logging
 __all__ = ['image2array','array2image','mask2array','array2mask','encode_image','decode_base64','preprocess_image_in_memory']
 
 def image2array(img):
@@ -168,7 +169,7 @@ def preprocess_image_in_memory(image_path, max_size_mb=20):
 
         # 檢查格式是否符合要求，不符合則轉換格式
         if img_format not in ['png', 'jpeg', 'gif', 'webp']:
-            print(f"圖像格式 {img_format} 不支援，將轉換為 {target_format}")
+            logging.warning("圖像格式 %s 不支援，將轉換為 %s", img_format, target_format)
             img = img.convert('RGB')  # 有些格式需要轉換為 RGB
 
         # 壓縮處理
@@ -177,7 +178,7 @@ def preprocess_image_in_memory(image_path, max_size_mb=20):
 
         file_size_mb = len(img_bytes.getvalue()) / (1024 * 1024)  # 以 MB 為單位
         if file_size_mb > max_size_mb:
-            print(f"圖像大小 {file_size_mb:.2f}MB 超過 {max_size_mb}MB 限制，將進行壓縮。")
+            logging.warning("圖像大小 %.2fMB 超過 %sMB 限制，將進行壓縮。", file_size_mb, max_size_mb)
             # 壓縮圖像
             img_bytes = io.BytesIO()
             img.save(img_bytes, format=target_format, quality=85, optimize=True)

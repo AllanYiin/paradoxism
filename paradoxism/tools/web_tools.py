@@ -8,6 +8,7 @@ import requests
 from paradoxism.utils import *
 from paradoxism.utils import regex_utils, web_utils
 import pysnooper
+import logging
 import urllib3
 __all__ = ["quick_search","open_url","detail_search"]
 
@@ -50,7 +51,7 @@ def better_keywords(query_intent, keywords_cnt=3):
         response_message = response.choices[0].message.content
         results_list = [t.replace(regex_utils.extract_numbered_list_member(t), '').strip() for t in
                         response_message.split('\n') if len(t) > 0]
-        print('better search:{0}'.format(results_list))
+        logging.info('better search:%s', results_list)
         return results_list
     else:
         return None
@@ -67,7 +68,7 @@ def better_search(query_intent, keywords_cnt=3, search_domain=None,it=None):
 
             google_search_lists = web_utils.search_google(query)
             # search_url_bing = f"https://www.bing.com/search?{query}"
-            print(item, google_search_lists)
+            logging.info('%s %s', item, google_search_lists)
             if all_search_list is None:
                 all_search_list = google_search_lists
             else:
@@ -84,12 +85,12 @@ def better_search(query_intent, keywords_cnt=3, search_domain=None,it=None):
                     url_deup[item['url']] = 1
                     webpage_list.append(item)
         all_search_list = webpage_list
-        print('better search results:', green_color(str(all_search_list)), flush=True)
+        logging.info('better search results: %s', green_color(str(all_search_list)))
         return all_search_list
     else:
         query =query_intent.replace('+',' ')
         google_search_lists, _ = web_utils.search_google(query)
-        print('google search results:', green_color(str(google_search_lists)), flush=True)
+        logging.info('google search results: %s', green_color(str(google_search_lists)))
         return google_search_lists
 
 
@@ -166,7 +167,7 @@ def quick_search(ur, kw,dm=None,language=None,**kwargs):
     Returns:
 
     """
-    print(yellow_color(f"quick_search user request:{ur},  kw:{kw}, dm:{dm}"), flush=True)
+    logging.info(yellow_color(f"quick_search user request:{ur},  kw:{kw}, dm:{dm}"))
     kw=kw.split('+')
     # 避免關鍵字被分拆 世界紀錄=>世界 紀錄
     kw='+'.join(['"'+w+'"' if len(w)>2 else w for w in kw])
@@ -181,7 +182,7 @@ def quick_search(ur, kw,dm=None,language=None,**kwargs):
 
 @tool('gpt-4o')
 def open_url(url,**kwargs):
-    print(yellow_color(f"open_url url:{url}"), flush=True)
+    logging.info(yellow_color(f"open_url url:{url}"))
     if url.startswith('www'):
         try:
             response = requests.get("https://"+url, verify=False)
@@ -218,7 +219,7 @@ def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):
     Returns:
 
     """
-    print(yellow_color(f"detail_search user request:{ur},  it:{it}, dm:{dm}"), flush=True)
+    logging.info(yellow_color(f"detail_search user request:{ur},  it:{it}, dm:{dm}"))
     returnData = OrderedDict()
     if it in ['full_list','news']:
         search_lists = better_search(ur,  search_domain='tw.stock.yahoo.com') if it == 'stock' and lv == 0 else better_search(
@@ -239,10 +240,10 @@ def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):
             for future in as_completed(threads):
                 try:
                     url, results = future.result()
-                    print(url, results, flush=True)
+                    logging.info('%s %s', url, results)
                     returnData[url] = results
                 except Exception as e:
-                    print(f"Error processing URL: {e}", flush=True)
+                    logging.error("Error processing URL: %s", e)
     else:
         rag_results = eval(search_rag(ur, 1, 0.88, it=it, use_question_variants=False))
         if len(rag_results['search_results']) >= 5:
@@ -265,10 +266,10 @@ def detail_search(ur, dm=None, l: str='zh-TW', it: str=None,**kwargs):
                 for future in as_completed(threads):
                     try:
                         url, results = future.result()
-                        print(url, results, flush=True)
+                        logging.info('%s %s', url, results)
                         returnData[url] = results
                     except Exception as e:
-                        print(f"Error processing URL: {e}", flush=True)
+                        logging.error("Error processing URL: %s", e)
     return json.dumps(returnData, ensure_ascii=False)
 
 

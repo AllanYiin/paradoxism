@@ -215,7 +215,7 @@ def get_html_content(url: str) -> str:
                 if not in_core:
                     to_remove_uuids.append(item['dataUuid'])
         else:
-            print(item)
+            logging.debug(item)
 
     # 6.1 移除「沒有任何文字或連結」的標籤
     def has_meaningful_text_or_link(tag: Tag) -> bool:
