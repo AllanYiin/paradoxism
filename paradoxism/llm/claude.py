@@ -25,7 +25,7 @@ class ClaudeClient(LLMClient):
         # self.client._custom_headers['Accept-Language'] = 'zh-TW'
         # self.aclient._custom_headers['Accept-Language'] = 'zh-TW'
 
-        self.model_info = eval(open('./model_infos.json', encoding="utf-8").read())['anthropic']
+        self.model_info = json.load(open('./model_infos.json', encoding="utf-8"))['anthropic']
         if model in self.model_info:
             self.max_tokens = self.model_info[model]["max_token"]
             print(f"Model: {self.model}, Max Tokens: {self.max_tokens}")
